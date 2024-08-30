@@ -718,6 +718,7 @@ EGOA_releases
 ggsave(filename = file.path(fig_path, "EGOA_tag_release_and_recovery.png"), width = 12, height = 8)
 
 rec_dev_yrs_not_to_est = c(data$years[1:10], data$years[(length(data$years) - 1):length(data$years)])
+
 ## estimate 
 # turn off tag-phi because we don't have tag-likelihood component
 na_map = fix_pars(par_list = parameters, pars_to_exclude = "ln_tag_phi")

@@ -576,6 +576,7 @@ admb_ln_rec_devs = suppressWarnings(as.numeric(unlist(strsplit(sab_par[grep("log
 admb_ln_rec_devs = subset(admb_ln_rec_devs, subset = !is.na(admb_ln_rec_devs))
 data$map_simplex_ycs_estimated = rep(0:(length(data$years) - 1))
 data$standardise_ycs = 0
+
 if(data$rec_devs_sum_to_zero == 1) {
   if(data$global_rec_devs == 1) {
     parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
@@ -890,16 +891,33 @@ if(!dir.exists(fig_path)) {
 ## Change regional recruitment deviations to sum = 0
 data$rec_devs_sum_to_zero = 1
 # dont estimate the first and last
-data$map_simplex_ycs_estimated = c(2:(n_years-2))
-data$Q_r_for_sum_to_zero = Q_sum_to_zero_QR(length(data$map_simplex_ycs_estimated));
+# data$map_simplex_ycs_estimated = c(2:(n_years-2))
+# data$Q_r_for_sum_to_zero = Q_sum_to_zero_QR(length(data$map_simplex_ycs_estimated));
+# if(data$rec_devs_sum_to_zero == 1) {
+#   if(data$global_rec_devs == 1) {
+#     parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = length(data$map_simplex_ycs_estimated) - 1)
+#   } else {
+#     parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol = length(data$map_simplex_ycs_estimated) - 1)
+#     
+#   }
+# } 
+
+# Make sure all rec devs are estimated...
+
 if(data$rec_devs_sum_to_zero == 1) {
   if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = length(data$map_simplex_ycs_estimated) - 1)
+    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
   } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol = length(data$map_simplex_ycs_estimated) - 1)
+    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
     
   }
-} 
+} else {
+  if(data$global_rec_devs == 1) {
+    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years)
+  } else {
+    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years)
+  }
+}
 
 ## check they are consistent
 validate_input_data_and_parameters(data, parameters)

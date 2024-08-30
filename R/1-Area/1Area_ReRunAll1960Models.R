@@ -9,12 +9,14 @@
 #'
 
 # source("(00) Init.R")
-source(here("R", "Utility_Fxns.R"))
 library(data.table)
 library(tidyverse)
 library(RColorBrewer)
 library(SpatialSablefishAssessment)
 library(TMB)
+library(here)
+source(here("R", "Utility_Fxns.R"))
+
 # options(warn=0) ## if warnings are being set to errors
 AF_direct_ageing = T
 run_profile = F ## after each estimation will do a profile of R0
@@ -639,12 +641,12 @@ ggsave(filename = file.path(fig_path, "time_blocks.png"), width = 7, height = 6)
 plot_input_catches(data, region_key = region_key)
 ggsave(filename = file.path(fig_path, "InputCatches.png"), width = 8, height = 6)
 
-na_map = fix_pars(par_list = parameters, pars_to_exclude = "ln_init_rec_dev")
+# na_map = fix_pars(par_list = parameters)
 
 ## estimate 
 ## some pars to fix
 map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
-                                   na_map = na_map,
+                                   # na_map = na_map,
                                    srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
                                    srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
                                    fixed_sel_first_shared_by_sex  = fixed_sel_first_shared_by_sex,
@@ -763,7 +765,6 @@ ggsave(filename = file.path(fig_path, "Observation_Frequency.png"), width = 10, 
 
 plot_input_timeblocks(data)
 ggsave(filename = file.path(fig_path, "time_blocks.png"), width = 7, height = 6)
-
 
 plot_input_catches(data, region_key = region_key)
 ggsave(filename = file.path(fig_path, "InputCatches.png"), width = 8, height = 6)
@@ -1108,9 +1109,9 @@ data$SrType = 3 # remove BH stock recruitment assumption. No SR relationship
 
 if(data$rec_devs_sum_to_zero == 1) {
   if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
+    parameters$trans_rec_dev = matrix(-0.5*data$sigma_R^2, nrow = 1, ncol = n_years - 1)
   } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
+    parameters$trans_rec_dev = matrix(-0.5*data$sigma_R^2, nrow = data$n_regions, ncol =  n_years - 1)
     
   }
 } else {
@@ -1235,9 +1236,9 @@ data$rec_devs_sum_to_zero = 0
 
 if(data$rec_devs_sum_to_zero == 1) {
   if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
+    parameters$trans_rec_dev = matrix(-0.5*data$sigma_R^2, nrow = 1, ncol = n_years - 1)
   } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
+    parameters$trans_rec_dev = matrix(-0.5*data$sigma_R^2, nrow = data$n_regions, ncol =  n_years - 1)
     
   }
 } else {

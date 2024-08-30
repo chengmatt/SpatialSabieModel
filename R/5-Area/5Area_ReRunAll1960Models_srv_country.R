@@ -844,16 +844,33 @@ validate_input_data_and_parameters(data, parameters)
 ## Change regional recruitment deviations to sum = 0
 data$rec_devs_sum_to_zero = 1
 # dont estimate the first and last
-data$map_simplex_ycs_estimated = c(20:(n_years-3))
-data$Q_r_for_sum_to_zero = Q_sum_to_zero_QR(length(data$map_simplex_ycs_estimated));
+# data$map_simplex_ycs_estimated = c(20:(n_years-3))
+# data$Q_r_for_sum_to_zero = Q_sum_to_zero_QR(length(data$map_simplex_ycs_estimated));
+# if(data$rec_devs_sum_to_zero == 1) {
+#   if(data$global_rec_devs == 1) {
+#     parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = length(data$map_simplex_ycs_estimated) - 1)
+#   } else {
+#     parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol = length(data$map_simplex_ycs_estimated) - 1)
+#     
+#   }
+# }
+
+# Make sure all rec devs are estimated...
 if(data$rec_devs_sum_to_zero == 1) {
   if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = length(data$map_simplex_ycs_estimated) - 1)
+    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
   } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol = length(data$map_simplex_ycs_estimated) - 1)
+    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
     
   }
+} else {
+  if(data$global_rec_devs == 1) {
+    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years)
+  } else {
+    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years)
+  }
 }
+
 ## estimate 
 ## some pars to fix
 map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
@@ -1183,117 +1200,117 @@ if(redo_sim_obs) {
 ## historic catch allocation S2
 ######################
 # options(warn=0) ## if warnings are being set to errors
-scenario = paste0("Model1960_04_srv", ifelse(AF_direct_ageing, "a", ""))
-fig_path = file.path("Output", "5-Area", scenario)
-if(!dir.exists(fig_path)) {
-  dir.create(fig_path)
-}
-
-if(data$rec_devs_sum_to_zero == 1) {
-  if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
-  } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
-    
-  }
-} else {
-  if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = 1, ncol = n_years)
-  } else {
-    parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = data$n_regions, ncol =  n_years)
-  }
-}
-
-# change comps to dirichlet-multinomial
-data$fixed_catchatage_comp_likelihood = 1
-data$trwl_catchatlgth_comp_likelihood = 1
-data$fixed_catchatlgth_comp_likelihood = 1 ## had problems estimating over-dispersion parameter was going to large values so 
-data$srv_catchatage_comp_likelihood = rep(1, data$n_surveys) ## had problems estimating over-dispersion parameter was going to large values so 
-map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
-                                   na_map = NULL,
-                                   srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
-                                   srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
-                                   fixed_sel_first_shared_by_sex  = fixed_sel_first_shared_by_sex,
-                                   fixed_sel_second_shared_by_sex   = fixed_sel_second_shared_by_sex,
-                                   trwl_sel_first_shared_by_sex  = trwl_sel_first_shared_by_sex,
-                                   trwl_sel_second_shared_by_sex  = trwl_sel_second_shared_by_sex,
-                                   recruit_dev_years_not_to_estimate = NULL,  ## don't estimate the last one
-                                   srv_q_spatial = srv_q_spatial,
-                                   tag_reporting_rate = tag_report_time_block,
-                                   est_init_F = est_init_F,
-                                   est_catch_sd = est_catch_sd,
-                                   est_movement = est_movement,
-                                   est_prop_male_recruit = est_prop_male_recruit,
-                                   est_fixed_AF_theta = T,
-                                   est_fixed_LF_theta = T,
-                                   est_trwl_LF_theta = T,
-                                   est_srv_AF_theta = T
-                                   #est_prop_male_recruit = seq(from = 1990, to = 2020, by = 10)
-)
-
-
-## Make AD Fun
-mle_obj <- MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T, silent = T)
-
-## what parameters are being estimated
-unique(names(mle_obj$par))
-
-## pre-optim sanity checks
-pre_optim_sanity_checks(mle_obj)
-start_report = mle_obj$report()
-
-DEBUG_estimation = F
-if(DEBUG_estimation) {
-  mle_obj$env$tracepar = F
-  options(warn=2) # covert warnings to errors and stop optimisations
-}
-## Optimisation
-start_time = Sys.time()
-mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, control = list(iter.max = 10000, eval.max = 10000))
-mle_spatial$estimation_time = Sys.time() - start_time
-mle_spatial$evaluations
-mle_spatial$convergence
-mle_spatial$objective
-
-## do an additional two Newton Raphson iterations to try and improve the fit.
-## this will also check that the Hessian is well defined because it is needed
-## to do the Newton Raphson iterations
-try_improve = tryCatch(expr =
-                         for(i in 1:2) {
-                           g = as.numeric(mle_obj$gr(mle_spatial$par))
-                           h = optimHess(mle_spatial$par, fn = mle_obj$fn, gr = mle_obj$gr)
-                           mle_spatial$par = mle_spatial$par - solve(h,g)
-                           mle_spatial$objective = mle_obj$fn(mle_spatial$par)
-                         }
-                       , error = function(e){e})
-
-try_improve
-
-## do some post-optimisation 
-post_optim_sanity_checks(mle_obj = mle_obj, mle_pars = mle_spatial$par)
-
-## have a look at parameters and derived quantities
-mle_report = mle_obj$report(mle_spatial$par)
-
-sd_report = sdreport(mle_obj)
-
-saveRDS(data, file.path(fig_path, "data.RDS"))
-saveRDS(parameters, file.path(fig_path, "parameters.RDS"))
-saveRDS(mle_report, file.path(fig_path, "mle_report.RDS"))
-saveRDS(sd_report, file.path(fig_path, "sd_report.RDS"))
-saveRDS(mle_spatial, file.path(fig_path, "mle_optim.RDS"))
-saveRDS(map_fixed_pars, file.path(fig_path, "map_fixed_pars.RDS"))
-saveRDS(region_key, file.path(fig_path, "region_key.RDS"))
-mle_param_list = mle_obj$env$parList(par = mle_spatial$par)
-saveRDS(mle_param_list, file.path(fig_path, "mle_par_list.RDS"))
-
-
-## simulate observations
-if(redo_sim_obs) {
-  sim_obs = simulate_observations(obj = mle_obj, n_sims = 200, sd_report = sd_report, include_param_uncertainty = F, region_key = region_key)
-  ## save this so we don't have to keep running it
-  saveRDS(sim_obs, file.path(fig_path, "sim_obs.RDS"))
-}
+# scenario = paste0("Model1960_04_srv", ifelse(AF_direct_ageing, "a", ""))
+# fig_path = file.path("Output", "5-Area", scenario)
+# if(!dir.exists(fig_path)) {
+#   dir.create(fig_path)
+# }
+# 
+# if(data$rec_devs_sum_to_zero == 1) {
+#   if(data$global_rec_devs == 1) {
+#     parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
+#   } else {
+#     parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
+#     
+#   }
+# } else {
+#   if(data$global_rec_devs == 1) {
+#     parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = 1, ncol = n_years)
+#   } else {
+#     parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = data$n_regions, ncol =  n_years)
+#   }
+# }
+# 
+# # change comps to dirichlet-multinomial
+# data$fixed_catchatage_comp_likelihood = 1
+# data$trwl_catchatlgth_comp_likelihood = 1
+# data$fixed_catchatlgth_comp_likelihood = 1 ## had problems estimating over-dispersion parameter was going to large values so 
+# data$srv_catchatage_comp_likelihood = rep(1, data$n_surveys) ## had problems estimating over-dispersion parameter was going to large values so 
+# map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
+#                                    na_map = NULL,
+#                                    srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
+#                                    srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
+#                                    fixed_sel_first_shared_by_sex  = fixed_sel_first_shared_by_sex,
+#                                    fixed_sel_second_shared_by_sex   = fixed_sel_second_shared_by_sex,
+#                                    trwl_sel_first_shared_by_sex  = trwl_sel_first_shared_by_sex,
+#                                    trwl_sel_second_shared_by_sex  = trwl_sel_second_shared_by_sex,
+#                                    recruit_dev_years_not_to_estimate = NULL,  ## don't estimate the last one
+#                                    srv_q_spatial = srv_q_spatial,
+#                                    tag_reporting_rate = tag_report_time_block,
+#                                    est_init_F = est_init_F,
+#                                    est_catch_sd = est_catch_sd,
+#                                    est_movement = est_movement,
+#                                    est_prop_male_recruit = est_prop_male_recruit,
+#                                    est_fixed_AF_theta = T,
+#                                    est_fixed_LF_theta = T,
+#                                    est_trwl_LF_theta = T,
+#                                    est_srv_AF_theta = T
+#                                    #est_prop_male_recruit = seq(from = 1990, to = 2020, by = 10)
+# )
+# 
+# 
+# ## Make AD Fun
+# mle_obj <- MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T, silent = T)
+# 
+# ## what parameters are being estimated
+# unique(names(mle_obj$par))
+# 
+# ## pre-optim sanity checks
+# pre_optim_sanity_checks(mle_obj)
+# start_report = mle_obj$report()
+# 
+# DEBUG_estimation = F
+# if(DEBUG_estimation) {
+#   mle_obj$env$tracepar = F
+#   options(warn=2) # covert warnings to errors and stop optimisations
+# }
+# ## Optimisation
+# start_time = Sys.time()
+# mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, control = list(iter.max = 10000, eval.max = 10000))
+# mle_spatial$estimation_time = Sys.time() - start_time
+# mle_spatial$evaluations
+# mle_spatial$convergence
+# mle_spatial$objective
+# 
+# ## do an additional two Newton Raphson iterations to try and improve the fit.
+# ## this will also check that the Hessian is well defined because it is needed
+# ## to do the Newton Raphson iterations
+# try_improve = tryCatch(expr =
+#                          for(i in 1:2) {
+#                            g = as.numeric(mle_obj$gr(mle_spatial$par))
+#                            h = optimHess(mle_spatial$par, fn = mle_obj$fn, gr = mle_obj$gr)
+#                            mle_spatial$par = mle_spatial$par - solve(h,g)
+#                            mle_spatial$objective = mle_obj$fn(mle_spatial$par)
+#                          }
+#                        , error = function(e){e})
+# 
+# try_improve
+# 
+# ## do some post-optimisation 
+# post_optim_sanity_checks(mle_obj = mle_obj, mle_pars = mle_spatial$par)
+# 
+# ## have a look at parameters and derived quantities
+# mle_report = mle_obj$report(mle_spatial$par)
+# 
+# sd_report = sdreport(mle_obj)
+# 
+# saveRDS(data, file.path(fig_path, "data.RDS"))
+# saveRDS(parameters, file.path(fig_path, "parameters.RDS"))
+# saveRDS(mle_report, file.path(fig_path, "mle_report.RDS"))
+# saveRDS(sd_report, file.path(fig_path, "sd_report.RDS"))
+# saveRDS(mle_spatial, file.path(fig_path, "mle_optim.RDS"))
+# saveRDS(map_fixed_pars, file.path(fig_path, "map_fixed_pars.RDS"))
+# saveRDS(region_key, file.path(fig_path, "region_key.RDS"))
+# mle_param_list = mle_obj$env$parList(par = mle_spatial$par)
+# saveRDS(mle_param_list, file.path(fig_path, "mle_par_list.RDS"))
+# 
+# 
+# ## simulate observations
+# if(redo_sim_obs) {
+#   sim_obs = simulate_observations(obj = mle_obj, n_sims = 200, sd_report = sd_report, include_param_uncertainty = F, region_key = region_key)
+#   ## save this so we don't have to keep running it
+#   saveRDS(sim_obs, file.path(fig_path, "sim_obs.RDS"))
+# }
 
 
 ######################
@@ -1306,21 +1323,6 @@ scenario = paste0("Model1960_04_srv", ifelse(AF_direct_ageing, "a", ""))
 fig_path = file.path("Output", "5-Area", scenario)
 if(!dir.exists(fig_path)) {
   dir.create(fig_path)
-}
-
-if(data$rec_devs_sum_to_zero == 1) {
-  if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0, nrow = 1, ncol = n_years - 1)
-  } else {
-    parameters$trans_rec_dev = matrix(0, nrow = data$n_regions, ncol =  n_years - 1)
-    
-  }
-} else {
-  if(data$global_rec_devs == 1) {
-    parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = 1, ncol = n_years)
-  } else {
-    parameters$trans_rec_dev = matrix(0.5 * data$sigma_R^2, nrow = data$n_regions, ncol =  n_years)
-  }
 }
 
 fixed_gear_with_imputation = readRDS(file = file.path("Data", "5-Area", "fixed_gear_with_imputations_S2.RDS"))
