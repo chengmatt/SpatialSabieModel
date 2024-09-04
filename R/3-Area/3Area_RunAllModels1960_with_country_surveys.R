@@ -83,7 +83,7 @@ sab_par <- readLines(here("Data", "ADMB", "tem.par"))
 sab_ctl <- digest_sab_ctl(sablefish_control_filename = here("Data", "ADMB", "tem.ctl")) 
 ## Model dimensions
 
-years = 1960:2020
+years = 1960:2021
 yrs_to_add = 1977 - 1960
 
 min_age = 2
@@ -742,7 +742,7 @@ map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
 )
 
 ## Make AD Fun
-mle_obj <- MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T, silent = T)
+mle_obj <- MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
 
 ## what parameters are being estimated
 unique(names(mle_obj$par))

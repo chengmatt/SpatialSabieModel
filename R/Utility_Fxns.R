@@ -175,3 +175,8 @@ digest_sab_input = function(sablefish_input_filename) {
   )) 
   
 }
+
+# Indicator function
+indicator_fun = function(x) {
+  ifelse(is.na(sum(x)), 0, 1)
+}
