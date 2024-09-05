@@ -29,9 +29,10 @@ parameters = readRDS(file = here(out_path, "parameters.RDS"))
 # Time block for fixed gear fleet selectivity from 1977 - 2015, 2016 - terminal (logistic)
 # Time invariant trawl fishery selectivity (gamma)
 # Selectivity for fixed gear deltas and trawl are shared across sexes
-# Tag data used, poisson
+# Tag data used, Neg Bin
 # Movement is estimated 
-# Spatially constant q
+# Spatially varying q
+# Time block reporting rates
 
 # Set up path for outputting model
 model_path = here("Output", "Final Models", "3-Area-1977", "3-Area-1977-Base")
@@ -43,19 +44,20 @@ fixed_sel_first_param_shared_by_sex  = F
 fixed_sel_second_param_shared_by_sex   = T
 trwl_sel_first_param_shared_by_sex  = F
 trwl_sel_second_param_shared_by_sex  = T
-recruit_dev_years_not_to_estimate = 2021 # don't estimate rec devs for last year
-srv_q_spatial = F # no spatial q
+recruit_dev_years_not_to_estimate = 2020:2021 # don't estimate rec devs for last 2 years
+srv_q_spatial = T # no spatial q
 est_init_F = F # estimate initial F
-tag_reporting_rate = "constant" # no tag reporting
+tag_reporting_rate = c(1978, 1990, 2000, 2010) # no tag reporting
 est_catch_sd = F # fixed catch sd
 est_movement = T # estimated movement
 est_prop_male_recruit = "off" # fixed sex-ratio
+data$tag_likelihood = 1
 
 # Map parameters off
-na_map = fix_pars(par_list = parameters, pars_to_exclude = "ln_tag_phi") # fix negative binomial parameter
+# na_map = fix_pars(par_list = parameters, pars_to_exclude = "ln_tag_phi") # fix negative binomial parameter
 map_fixed_pars = set_up_parameters(data = data, 
                                    parameters = parameters,
-                                   na_map = na_map,
+                                   na_map = NULL,
                                    srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
                                    srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
                                    fixed_sel_first_shared_by_sex  = fixed_sel_first_param_shared_by_sex,

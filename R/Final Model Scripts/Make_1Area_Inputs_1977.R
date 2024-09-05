@@ -53,14 +53,18 @@ fixed_observer_LF = readRDS(here(dat_path, "Observer_fixed_LF_w_eff.RDS"))
 survery_AF_direct = readRDS(file = here(dat_path, "Survey_direct_AF_w_eff.RDS")) %>% mutate(country = ifelse(year <= 1993, "Japan", "United States"))
 
 # Make sure input sample sizes are not overly large or small (cap at 500, floor at 80, and multiply by 0.4 if not larger than the max cap)
-fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                       eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 
 
 ### Tag Data ----------------------------------------------------------------
@@ -358,30 +362,35 @@ for(c_ndx in 1:length(countries)) { ## go backwards becuase its starts with Japa
 
 
 ### Abundance Indices -------------------------------------------------------
-data$srv_bio_indicator = array(0, dim = c(n_regions, n_years,data$n_surveys)) # indicator for survey index
-data$srv_bio_indicator[1,data$years %in% srv_dom_df$years, 3] = 1 # domestic suvey index
-data$srv_bio_indicator[1,data$years %in% srv_jap_df$years, 2] = 1 # survey index for joint/jp
-data$srv_bio_indicator[1,data$years %in% japanese_fishery_cpue_df$years, 1] = 1 # index for jp fishery
+design_survey_index = readRDS(file = file.path("Data", "Survey", "regional_abundance_estimates.RDS")) %>% filter(Year != 2022)
+# sum estimates over all years
+design_survey_index = design_survey_index %>% group_by(Year, Country) %>% 
+  summarise(sum_estimates = sum(area_RPN), sum_var = sum(var_area_RPN), 
+            se = sqrt(sum_var), LCI = sum_estimates - 2*se, UCI = sum_estimates + 2*se)
 
 # fill in abundance indices
 data$obs_srv_bio = array(0, dim = c(n_regions, n_years, data$n_surveys))
-data$obs_srv_bio[1,data$years %in% srv_dom_df$years, 3] = srv_dom_df$obs[srv_dom_df$years %in% data$years]
-data$obs_srv_bio[1,data$years %in% srv_jap_df$years, 2] = srv_jap_df$obs[srv_jap_df$years %in% data$years]
+data$obs_srv_bio[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 3] = design_survey_index$sum_estimates[design_survey_index$Country == "United States"]
+data$obs_srv_bio[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 2] = design_survey_index$sum_estimates[design_survey_index$Country == "Japan"]
 data$obs_srv_bio[1,data$years %in% japanese_fishery_cpue_df$years, 1] = japanese_fishery_cpue_df$obs[japanese_fishery_cpue_df$years %in% data$years]
 
 # fill in associated se for abundance indices
 data$obs_srv_se = array(0.0, dim = c(n_regions, n_years,data$n_surveys))
-data$obs_srv_se[1,data$years %in% srv_dom_df$years, 3] = srv_dom_df$se[srv_dom_df$years %in% data$years]
-data$obs_srv_se[1,data$years %in% srv_jap_df$years, 2] = srv_jap_df$se[srv_jap_df$years %in% data$years]
+data$obs_srv_se[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 3] = design_survey_index$se[design_survey_index$Country == "United States"]
+data$obs_srv_se[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 2] = design_survey_index$se[design_survey_index$Country == "Japan"]
 data$obs_srv_se[1,data$years %in% japanese_fishery_cpue_df$years, 1] = japanese_fishery_cpue_df$se[japanese_fishery_cpue_df$years %in% data$years]
+
+data$srv_bio_indicator = array(0, dim = c(n_regions, n_years,data$n_surveys)) # indicator for survey index
+data$srv_bio_indicator[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 3] = 1 # domestic suvey index
+data$srv_bio_indicator[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 2] = 1 # survey index for joint/jp
+data$srv_bio_indicator[1,data$years %in% japanese_fishery_cpue_df$years, 1] = 1 # index for jp fishery
 
 # likelihoods for abundance indices
 data$srv_bio_likelihood = rep(0, data$n_surveys) # manual lognormal call
-data$srv_obs_is_abundance = rep(1, data$n_surveys) # calculate index by abundance
+data$srv_obs_is_abundance = c(0,0,1) # calculate index by abundance
 data$srv_q_by_year_indicator = matrix(0, nrow = n_years, ncol = data$n_surveys)
 data$srv_q_transformation = rep(0, data$n_surveys) # log transformation
 data$q_is_nuisance = rep(0, data$n_surveys) # estiamted as a free parameter
-
 # TMB Parameters ----------------------------------------------------------
 parameters <- list()
 

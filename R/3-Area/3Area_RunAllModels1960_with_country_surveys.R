@@ -317,18 +317,19 @@ survey_index_indicator = survey_index %>% ungroup() %>% dplyr::select(region_f, 
 data$fixed_catchatage_indicator = as.matrix(fixed_AF_indicator %>% dplyr::select(-region_f), nrow = n_regions, ncol = n_years)
 data$obs_fixed_catchatage = array(0, dim = c(n_ages * 2, n_regions, n_years))
 ## fill the container
-obs_years = unique(fixed_gear_AF_alk_pooled$year)
-obs_reg = unique(fixed_gear_AF_alk_pooled$region)
+obs_years = unique(fixed_gear_AF$year)
+obs_reg = unique(fixed_gear_AF$region)
 N_eff = 100 ## sample size
 for(y_ndx in 1:length(obs_years)) {
   this_year_ndx = which(years %in% obs_years[y_ndx])
   for(r_ndx in 1:length(obs_reg)) {
     this_region_ndx = region_key$TMB_ndx[which(region_key$area %in% obs_reg[r_ndx])] + 1
-    this_df = (fixed_gear_AF_alk_pooled %>% filter(region == obs_reg[r_ndx], year == obs_years[y_ndx]))
+    this_df = (fixed_gear_AF %>% filter(region == obs_reg[r_ndx], year == obs_years[y_ndx]))
     if(nrow(this_df) > 0)
       data$obs_fixed_catchatage[,this_region_ndx, this_year_ndx] = this_df$P * this_df$eff_N
   }
 }
+
 data$fixed_catchatage_covar_structure = 0
 data$fixed_catchatage_comp_likelihood = 0
 

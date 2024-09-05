@@ -43,8 +43,8 @@ design_survey_index = design_survey_index %>% group_by(Country, Year, area_lab) 
 
 ### Composition Data --------------------------------------------------------
 AF_direct_ageing = T # Whether direct ageing is used
-max_N_eff = 500 # Maximum input sample size
-min_N_eff = 50 # Minimum input sample size
+max_N_eff = 500/5 # Maximum input sample size
+min_N_eff = 50/5 # Minimum input sample size
 N_eff_multiplier = 0.4 # Multiplier for input sample size
 
 # read in composition data
@@ -54,14 +54,18 @@ fixed_observer_LF = readRDS(file = here(dat_path, "Observer_fixed_LF_w_eff.RDS")
 survery_AF_direct = readRDS(file = here(dat_path, "Survey_direct_AF_w_eff.RDS"))  %>% mutate(country = ifelse(year <= 1993, "Japan", "United States"))
 
 # Make sure input sample sizes are not overly large or small (cap at 500, floor at 80, and multiply by 0.4 if not larger than the max cap)
-fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                       eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff, eff_N * N_eff_multiplier),
-                                                 eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
+fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
+fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 
 
 ### Tag Data ----------------------------------------------------------------
