@@ -55,15 +55,11 @@ survery_AF_direct = readRDS(file = here(dat_path, "Survey_direct_AF_w_eff.RDS"))
 
 # Make sure input sample sizes are not overly large or small (cap at 500, floor at 80, and multiply by 0.4 if not larger than the max cap)
 fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
-fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
 survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
-survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
 trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
 fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N * N_eff_multiplier > max_N_eff, max_N_eff * N_eff_multiplier, eff_N * N_eff_multiplier))
 fixed_gear_AF_direct = fixed_gear_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-fixed_gear_AF_alk_pooled = fixed_gear_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 survery_AF_direct = survery_AF_direct %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
-survery_AF_alk_pooled = survery_AF_alk_pooled %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 trawl_observer_LF = trawl_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 fixed_observer_LF = fixed_observer_LF %>% mutate(eff_N = ifelse(eff_N <= min_N_eff, min_N_eff, eff_N))
 
@@ -111,13 +107,6 @@ data$n_surveys = length(survey_labels) # number of surveys
 data$n_projections_years = 0 # projeciton years
 data$do_projection = 0 # don't do projections
 
-# Projections
-data$future_recruitment_type = 0 # simulate from lognormal
-data$year_ndx_for_empirical_resampling = c(0,n_years - 1) # where to resmaple from (years)
-data$future_fishing_type = 0 # user supplifed F
-data$future_fishing_inputs_trwl = array(0.1, dim = c(data$n_regions, data$n_projections_years)) # specified F
-data$future_fishing_inputs_fixed = array(0.1, dim = c(data$n_regions, data$n_projections_years)) # specific F
-
 # Dimensions 
 n_regions = data$n_regions
 n_ages = length(data$ages) 
@@ -125,6 +114,13 @@ n_length_bins = length(data$length_bins) # the last length bin value is the mini
 n_projyears = length(data$years) +  data$n_projections_years
 n_years = length(data$years)
 projyears = min(data$years):(max(data$years) + data$n_projections_years)
+
+# Projections
+data$future_recruitment_type = 0 # simulate from lognormal
+data$year_ndx_for_empirical_resampling = c(0,n_years - 1) # where to resmaple from (years)
+data$future_fishing_type = 0 # user supplifed F
+data$future_fishing_inputs_trwl = array(0.1, dim = c(data$n_regions, data$n_projections_years)) # specified F
+data$future_fishing_inputs_fixed = array(0.1, dim = c(data$n_regions, data$n_projections_years)) # specific F
 
 ### Recruitment Specifications ----------------------------------------------
 data$global_rec_devs = 0 # regional rec devs
@@ -399,7 +395,7 @@ if(include_fixed_LF) { # exclude LF observation
   obs_years = unique(fixed_observer_LF$year) 
   
   ## cut years that already in the age comp don't want to double dip
-  obs_years = obs_years[!obs_years %in% unique(fixed_gear_AF_alk_pooled$year)]
+  obs_years = obs_years[!obs_years %in% unique(fixed_gear_AF$year)]
   obs_reg = unique(fixed_observer_LF$region)
   for(y_ndx in 1:length(obs_years)) {
     this_year_ndx = which(years %in% obs_years[y_ndx])
