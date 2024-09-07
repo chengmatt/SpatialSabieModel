@@ -12,6 +12,8 @@ library(here)
 source(here("R", "Utility_Fxns.R"))
 source(here("R", "Model_Compare_Fxns.R"))
 
+out_path = here("Output", "Final Models", "5-Area-1960")
+
 # 01-Poisson vs. 01-NegBin ------------------------------------------------
 
 compare_2_models(
@@ -26,6 +28,24 @@ compare_2_models(
 
 # Negative Binomial seems to fit index data better, at the cost of fitting recapture data (makes sense)
 
+# 01-NegBin (Constant Tag Recovery) vs. 02-Recent Tag Recovery ------------------------------------------------
+
+compare_2_models(
+  model_path = list(
+    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
+    model_2 = here(out_path, "5-Area-1960-02-Recent")
+  ),
+  model_name = c("01-NegBin-Constant", "02-Recent"),
+  fig_path = here("Figs", "5-Area-1960"),
+  fig_name = "01_NegBin_vs_02-Recent.pdf"
+)
+
+# Comparing constant to recent time-blocked tag recovery, there does not seem
+# to be a huge difference in either fits to indices, tag recapture data, and
+# general dynamics seem similar. Doesn't seme necessary to incorporate
+
+# Circle back to this (where is information from tag recovery coming from??)
+
 # 01-NegBin (Constant Tag Recovery) vs. 02-Decadal Tag Recovery ------------------------------------------------
 
 compare_2_models(
@@ -38,83 +58,72 @@ compare_2_models(
   fig_name = "01_NegBin_vs_02-Decadal.pdf"
 )
 
-# Decadal tag recovery fits to tag recaptures better (given increased flexibility), but fits to other
-# data sources, as well as key quantities did not change substatially. Does not seem worth the extra complexity
+# Again, not much difference with time-varying vs. time-constant tag recovery rates
 
-# 03-Movement 3 Time Blocks vs. 03-Movement 4 Time Blocks ------------------------------------------------
+# 01-NegBin (Constant Tag Recovery) vs. 02-Spatial Tag Recovery ------------------------------------------------
+compare_2_models(
+  model_path = list(
+    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
+    model_2 = here(out_path, "5-Area-1960-02-Space")
+  ),
+  model_name = c("01-NegBin-Constant", "02-Space"),
+  fig_path = here("Figs", "5-Area-1960"),
+  fig_name = "01_NegBin_vs_02-Space.pdf"
+)
 
-# Looking at these two models, the movement parameters are so uncertain that 
-# I would argue they're unreliable and likely on a bound, and cannot be 
-# estimated adequately (hence, not even going to 
-# look at the plots). However, the 2 time block models seem to be estimated relatively well. 
+# Again, not much difference with time-varying vs. constant tag recovery rates
+# Seems like we can continue assuming constant spatial and time rates, without large consequences
 
-# 01-NegBin (Constant) vs. 03-Movement 2 Time Blocks ------------------------------------------------
+# 03-NegBin (Constant Tag Recovery) vs. 03-Time Block (4) Movement  ------------------------------------------------
+movement_blk_4_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_4_Move", "mle_report.RDS"))
+movement_blk_4_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_4_Move", "sd_report.RDS"))
+
+compare_2_models(
+  model_path = list(
+    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
+    model_2 = here(out_path, "5-Area-1960-03-Time_4_Move")
+  ),
+  model_name = c("01-NegBin-Constant", "03-Time4Move"),
+  fig_path = here("Figs", "5-Area-1960"),
+  fig_name = "01_NegBin_vs_03_Time4Move.pdf"
+)
+
+# Movement parameters for 4 time blocks is pretty uncertain, but fits
+# to indices and tag recapture data improve slightly. Given high uncertainty
+# in movement dynamics, it may not be great to proceed with 4 time blocks (look at alternative blocking for time)
+
+# 01-NegBin (Constant Tag Recovery) vs. 03-Time Block (3) Movement  ------------------------------------------------
+movement_blk_3_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_3_Move", "mle_report.RDS"))
+movement_blk_3_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_3_Move", "sd_report.RDS"))
+
+compare_2_models(
+  model_path = list(
+    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
+    model_2 = here(out_path, "5-Area-1960-03-Time_3_Move")
+  ),
+  model_name = c("01-NegBin-Constant", "03-Time3Move"),
+  fig_path = here("Figs", "5-Area-1960"),
+  fig_name = "01_NegBin_vs_03_Time3Move.pdf"
+)
+
+# Fits to tag recapture data improve, as well as to indices. Movement parameters are
+# less uncertain, and this is a more flexible parmaeterization than 2 time blocks,
+# Likely will go forward with this in future investigations.
+
+# 01-NegBin (Constant Tag Recovery) vs. 03-Time Block (2) Movement  ------------------------------------------------
+movement_blk_2_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_2_Move", "mle_report.RDS"))
+movement_blk_2_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_2_Move", "sd_report.RDS"))
 
 compare_2_models(
   model_path = list(
     model_1 = here(out_path, "5-Area-1960-01-NegBin"),
     model_2 = here(out_path, "5-Area-1960-03-Time_2_Move")
   ),
-  model_name = c("01-NegBin (ConstMove)", "03-Time2Move"),
+  model_name = c("01-NegBin-Constant", "03-Time2Move"),
   fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBinConst_vs_Time2Move.pdf"
+  fig_name = "01_NegBin_vs_03_Time2Move.pdf"
 )
 
-# Comparing a time-blocked movement model against a time-invariant movement model,
-# it seems like fits to indices improve a decent bit, as well as fits to recapture data.
-# However, there seems to be major differences in regional recruitment and scaling SSB (although
-# the absolute scale of SSB seems similar)
+# Fits to tag recapture data improve ever so slightly but not much improvement, 
+# neither for indices. Movement dynmiacs are less uncertain and they seem fairly reliable.
 
-# Need to come back to this and figure out why its doing that...
- 
-
-model_1 = readRDS(here(out_path, "5-Area-1960-01-NegBin", "mle_report.RDS"))
-model_2 = readRDS(here(out_path, "5-Area-1960-03-Time_2_Move", "mle_report.RDS"))
-
-reshape2::melt(model_1$movement_matrix) %>%
-  rename(From = Var1, To = Var2, TimeBlock = Var3) %>%
-  mutate(
-    From = case_when(
-      From == 1 ~ "BS",
-      From == 2 ~ "AI",
-      From == 3 ~ "WGOA",
-      From == 4 ~ "CGOA",
-      From == 5 ~ "EGOA"
-    ), From = factor(From, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")),
-    To = case_when(
-      To == 1 ~ "BS",
-      To == 2 ~ "AI",
-      To == 3 ~ "WGOA",
-      To == 4 ~ "CGOA",
-      To == 5 ~ "EGOA"
-    ), To = factor(To, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA"))) %>%
-  ggplot(aes(x = From, y = To, fill = value, label = round(value, 3))) +
-  geom_tile(alpha = 0.8) +
-  geom_text(size = 5) +
-  scale_fill_viridis_c() +
-  facet_wrap(~TimeBlock) +
-  labs(title = "Constant Move")
-
-reshape2::melt(model_2$movement_matrix) %>%
-  rename(From = Var1, To = Var2, TimeBlock = Var3) %>%
-  mutate(
-    From = case_when(
-      From == 1 ~ "BS",
-      From == 2 ~ "AI",
-      From == 3 ~ "WGOA",
-      From == 4 ~ "CGOA",
-      From == 5 ~ "EGOA"
-    ), From = factor(From, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")),
-    To = case_when(
-      To == 1 ~ "BS",
-      To == 2 ~ "AI",
-      To == 3 ~ "WGOA",
-      To == 4 ~ "CGOA",
-      To == 5 ~ "EGOA"
-    ), To = factor(To, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA"))) %>%
-  ggplot(aes(x = From, y = To, fill = value, label = round(value, 3))) +
-  geom_tile(alpha = 0.8) +
-  geom_text(size = 5) +
-  scale_fill_viridis_c() +
-  facet_wrap(~TimeBlock) +
-  labs(title = "Time Block Move")

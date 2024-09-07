@@ -211,7 +211,11 @@ data$srv_sel_by_year_indicator = matrix(0, nrow = n_projyears, ncol = data$n_sur
 
 ### Tagging -----------------------------------------------------------------
 # Tag releases from 1979 - 2016
-tag_release_years = c(1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016)
+tag_release_years = c(1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 
+                      1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 1998, 
+                      1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 
+                      2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
+                      2020, 2021)
 data$tag_release_event_this_year = rep(0, n_years) # initialize vector
 data$tag_release_event_this_year[data$years %in% tag_release_years] = 1 # do tag releases in the years specified above
 data$male_tagged_cohorts_by_age = array(0, dim = c(n_ages, n_regions, length(tag_release_years)))
@@ -239,7 +243,7 @@ for(y_ndx in 1:length(tag_release_years)) {
 # Munging tag recovery stuff
 include_tag_recoveries = T # tags are turned off using evaluate-tag-likelihood switch
 include_zero_tag_recovery_events = T
-tag_recovery_years = 1978:2016 # tag recovery years
+tag_recovery_years = 1978:2021 # tag recovery years
 data$tag_recovery_indicator_by_year = rep(0, n_years) ## no tag releases
 data$obs_tag_recovery = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
 data$tag_recovery_indicator = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))

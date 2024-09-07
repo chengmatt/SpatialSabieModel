@@ -25,8 +25,8 @@ dat_path <- here("Data", "5-Area")
 
 AF_direct_ageing = T
 
-max_N_eff = 1000 ## during the initial input calculations some of the input sample sizes can be quite large, which I don't want effecting the model
-min_N_eff = 50
+max_N_eff = 500 / 5 ## during the initial input calculations some of the input sample sizes can be quite large, which I don't want effecting the model
+min_N_eff = 5 / 50
 N_eff_multiplier = 0.4 ## only relevant for mult
 
 ## read in observational datasets
@@ -639,16 +639,16 @@ parameters$trans_srv_catchatage_error = rep(log(1), data$n_surveys)
 #' or shared. This was done to ensure these were consistent among multiple runs
 #' unless a run was specifically investigating/changing this assumption
 
-srv_sel_first_param_shared_by_sex = F
+srv_sel_first_param_shared_by_sex = T
 srv_sel_second_param_shared_by_sex = T
-fixed_sel_first_shared_by_sex  = F
-fixed_sel_second_shared_by_sex   = F
+fixed_sel_first_shared_by_sex  = T
+fixed_sel_second_shared_by_sex   = T
 trwl_sel_first_shared_by_sex  = T
 trwl_sel_second_shared_by_sex  = T
-recruit_dev_years_not_to_estimate = NULL  ## don't estimate the last one
+recruit_dev_years_not_to_estimate = 2020:2021  ## don't estimate the last one
 srv_q_spatial = F
 tag_reporting_rate = "constant"
-est_init_F = T
+est_init_F = F
 est_catch_sd = F
 est_movement = T
 est_prop_male_recruit = "off"
@@ -664,8 +664,8 @@ if(!dir.exists(fig_path)) {
   dir.create(fig_path)
 }
 
-data$age_based_movement = 1
-data$tag_likelihood = 2 # mutlinomial...
+data$age_based_movement = 0
+data$tag_likelihood = 0 # mutlinomial...
 ## check parameters
 validate_input_data_and_parameters(data, parameters)
 
@@ -685,7 +685,8 @@ plot_input_catches(data, region_key = region_key)
 ggsave(filename = file.path(fig_path, "InputCatches.png"), width = 8, height = 6)
 
 ## estimate 
-na_map = fix_pars(par_list = parameters, pars_to_exclude = c("ln_ato95_movement", "ln_a50_movement"))
+na_map = fix_pars(par_list = parameters,
+                  pars_to_exclude = c("ln_ato95_movement", "ln_a50_movement", "ln_tag_phi"))
 ## some pars to fix
 map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
                                    na_map = na_map,
@@ -707,7 +708,7 @@ map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
 
 ## Make AD Fun
 mle_obj <- MakeADFun(data = data, parameters = parameters, map = map_fixed_pars, 
-                     DLL="SpatialSablefishAssessment_TMBExports", hessian = T, silent = T)
+                     DLL="SpatialSablefishAssessment_TMBExports", hessian = T, silent = F)
 
 ## what parameters are being estimated
 unique(names(mle_obj$par))
@@ -723,7 +724,8 @@ if(DEBUG_estimation) {
 }
 ## Optimisation
 start_time = Sys.time()
-mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, control = list(iter.max = 10000, eval.max = 10000))
+mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, 
+                     control = list(iter.max = 10000, eval.max = 10000))
 mle_spatial$estimation_time = Sys.time() - start_time
 mle_spatial$evaluations
 mle_spatial$convergence

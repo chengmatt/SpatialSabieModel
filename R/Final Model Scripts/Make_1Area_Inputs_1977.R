@@ -220,7 +220,7 @@ data$annual_tag_shedding_rate = 0.00 # tag shedding
 # don't include any tag data
 include_tag_recoveries = T
 include_zero_tag_recovery_events = T
-tag_recovery_years = 1978:2020
+tag_recovery_years = 1978:2021
 data$tag_recovery_indicator_by_year = rep(0, n_years) ## no tag releases
 data$obs_tag_recovery = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
 data$tag_recovery_indicator = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
