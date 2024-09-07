@@ -39,7 +39,7 @@ shoot_iter = 5 # number of iterations to multiple shoot for
 # Time block reporting rates
 
 # Set up path for outputting model
-model_path = here("Output", "Final Models", "5-Area-1960", "5-Area-1960-Base")
+model_path = here("Output", "Final Models", "5-Area-1960", "5-Area-1960-Final")
 dir.create(model_path)
 
 srv_sel_first_param_shared_by_sex = F 

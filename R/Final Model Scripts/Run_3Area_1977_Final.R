@@ -116,7 +116,8 @@ if(multiple_shoot == TRUE) {
   mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
-  mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, control = list(iter.max = 10000, eval.max = 10000))
+  mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, 
+                       control = list(iter.max = 1e5, eval.max = 1e5, rel.tol = 1e-15))
   mle_spatial$convergence # check convergence, 0 = converged
   
   # Run more newton steps

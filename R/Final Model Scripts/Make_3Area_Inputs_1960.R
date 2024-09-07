@@ -157,19 +157,22 @@ data$male_age_length_transition[,,as.character(1995:max(years))] = sab_inputs$ma
 data$female_age_length_transition[,,as.character(1995:max(years))] = sab_inputs$female_length_at_age_97_22
 
 ### Movement Specifications -------------------------------------------------
-data$n_movement_time_blocks = 1 # 1 movement block (fixed)
+data$n_movement_time_blocks = 1 # 1 movement block 
 data$apply_fixed_movement = 0 # estimated movement matrix
 data$fixed_movement_matrix = array(0, dim = c(n_regions, n_regions, data$n_movement_time_blocks)) # fixed movement
 data$movement_matrix = array(0, dim = c(n_regions, n_regions, data$n_movement_time_blocks)) # estiamted movement matrix
 data$movement_time_block_indicator = rep(0, n_years) # time block index for movement
+# data$movement_time_block_indicator = c(rep(0, length(1960:1990)), rep(1, length(1991:2021)))
 movement_matrix = fixed_movement_matrix = matrix(0, nrow = n_regions, ncol = n_regions)
 diag(fixed_movement_matrix) = 1 # set 1 for fixed movement matrix
 diag(movement_matrix) = 0.9 # set 0.9 for estimated movement matrix (cant be 1)
-data$fixed_movement_matrix[,,1] = fixed_movement_matrix # define movement fixed 1 region
+# data$fixed_movement_matrix[,,1] = fixed_movement_matrix # define movement fixed 1 region
+data$fixed_movement_matrix[,,] = fixed_movement_matrix # define movement fixed 1 region
 movement_matrix = movement_matrix + rlnorm(n = n_regions * n_regions, log(0.01), 0.1) # random deviate here for 0s in movement matrix
 # Normalize so rows sum to 1 in estimated movement matrix
 movement_matrix = sweep(movement_matrix, 1, STATS = rowSums(movement_matrix), "/")
-data$movement_matrix[,,1] = movement_matrix
+# data$movement_matrix[,,1] = movement_matrix
+data$movement_matrix[,,] = movement_matrix
 data$do_recruits_move = 0 # recruitment is applied after movement occurs
 data$tag_likelihood = 0 # Poisson likelihood
 data$evaluate_tag_likelihood = 1 # evaluate tag data
@@ -542,7 +545,9 @@ parameters$ln_srv_sel_pars[1,2,2,1:data$n_surveys] = suppressWarnings(as.numeric
 
 # Set up movement parameters
 parameters$transformed_movement_pars = array(NA, dim = c(n_regions - 1, n_regions, data$n_movement_time_blocks))
-for(i in 1:n_regions) parameters$transformed_movement_pars[,i,1] = simplex(movement_matrix[i,])
+# for(i in 1:n_regions) parameters$transformed_movement_pars[,i,1] = simplex(movement_matrix[i,])
+for(i in 1:n_regions) parameters$transformed_movement_pars[,i,] = simplex(movement_matrix[i,])
+
 # Set up tagging parameters
 parameters$logistic_tag_reporting_rate = matrix(logit(0.50), nrow = data$n_regions, ncol = max(sum(data$tag_recovery_indicator_by_year),1))
 parameters$ln_tag_phi = log(0.5) # Negative binomial phi parameter
