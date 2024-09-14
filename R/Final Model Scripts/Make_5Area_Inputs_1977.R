@@ -243,7 +243,7 @@ for(y_ndx in 1:length(tag_release_years)) {
 # Munging tag recovery stuff
 include_tag_recoveries = T # tags are turned off using evaluate-tag-likelihood switch
 include_zero_tag_recovery_events = T
-tag_recovery_years = 1978:2021 # tag recovery years
+tag_recovery_years = 1978:2020 # tag recovery years
 data$tag_recovery_indicator_by_year = rep(0, n_years) ## no tag releases
 data$obs_tag_recovery = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
 data$tag_recovery_indicator = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))

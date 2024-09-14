@@ -14,116 +14,102 @@ source(here("R", "Model_Compare_Fxns.R"))
 
 out_path = here("Output", "Final Models", "5-Area-1960")
 
-# 01-Poisson vs. 01-NegBin ------------------------------------------------
+# 01-Tag Likelihoods ------------------------------------------------
 
-compare_2_models(
+compare_sptl_models(
   model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-Poisson"),
-    model_2 = here(out_path, "5-Area-1960-01-NegBin")
+    here(out_path, "5-Area-1960-01-Poisson"),
+    here(out_path, "5-Area-1960-01-NegBin"),
+    here(out_path, "5-Area-1960-01-Multinomial")
   ),
-  model_name = c("01-Pois", "01-NegBin"),
+  model_name = c("01-Pois", "01-NegBin", "01-Mltnml"),
   fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_Pois_vs_NegBin.pdf"
+  fig_name = "01_TagLikelihoods.pdf"
 )
 
-# Negative Binomial seems to fit index data better, at the cost of fitting recapture data (makes sense)
 
-# 01-NegBin (Constant Tag Recovery) vs. 02-Recent Tag Recovery ------------------------------------------------
+# 02 - Reporting Rates ----------------------------------------------------
 
-compare_2_models(
+compare_sptl_models(
   model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-02-Recent")
+    here(out_path, "5-Area-1960-01-NegBin"),
+    here(out_path, "5-Area-1960-02-Recent"),
+    here(out_path, "5-Area-1960-02-FishBlock"),
+    here(out_path, "5-Area-1960-02-Space"),
+    here(out_path, "5-Area-1960-02-Decadal")
   ),
-  model_name = c("01-NegBin-Constant", "02-Recent"),
+  model_name = c("01-NegBin (Constant)", "02-Recent", "02-FishBlock", "02-Spatial", "02-Decadal"),
   fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_02-Recent.pdf"
+  fig_name = "02_TagReporting.pdf"
 )
 
-# Comparing constant to recent time-blocked tag recovery, there does not seem
-# to be a huge difference in either fits to indices, tag recapture data, and
-# general dynamics seem similar. Doesn't seme necessary to incorporate
+# 03 - Movement ----------------------------------------------------
 
-# Circle back to this (where is information from tag recovery coming from??)
-
-# 01-NegBin (Constant Tag Recovery) vs. 02-Decadal Tag Recovery ------------------------------------------------
-
-compare_2_models(
+compare_sptl_models(
   model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-02-Decadal")
+    here(out_path, "5-Area-1960-02-FishBlock"),
+    here(out_path, "5-Area-1960-03-Time_4_Move"),
+    here(out_path, "5-Area-1960-03-Time_3_Move"),
+    here(out_path, "5-Area-1960-03-Time_2_Move")
   ),
-  model_name = c("01-NegBin-Constant", "02-Decadal"),
+  model_name = c("02-FishBlock (Constant)", "03-Move4", "03-Move3", "03-Move2"),
   fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_02-Decadal.pdf"
+  fig_name = "03_Movement.pdf"
 )
 
-# Again, not much difference with time-varying vs. time-constant tag recovery rates
 
-# 01-NegBin (Constant Tag Recovery) vs. 02-Spatial Tag Recovery ------------------------------------------------
-compare_2_models(
+# 04 - Spatial Q ----------------------------------------------------
+
+compare_sptl_models(
   model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-02-Space")
+    here(out_path, "5-Area-1960-03-Time_2_Move"),
+    here(out_path, "5-Area-1960-04-SptQ")
   ),
-  model_name = c("01-NegBin-Constant", "02-Space"),
+  model_name = c("03-Move2", "04-SptQ"),
   fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_02-Space.pdf"
+  fig_name = "04_SptQ.pdf"
 )
 
-# Again, not much difference with time-varying vs. constant tag recovery rates
-# Seems like we can continue assuming constant spatial and time rates, without large consequences
 
-# 03-NegBin (Constant Tag Recovery) vs. 03-Time Block (4) Movement  ------------------------------------------------
-movement_blk_4_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_4_Move", "mle_report.RDS"))
-movement_blk_4_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_4_Move", "sd_report.RDS"))
+# Time Series - 1Area vs 5Area --------------------------------------------
 
-compare_2_models(
-  model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-03-Time_4_Move")
-  ),
-  model_name = c("01-NegBin-Constant", "03-Time4Move"),
-  fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_03_Time4Move.pdf"
-)
+area_1 = readRDS(here("Output", "Final Models", "1-Area-1960", "1-Area-1960-Final", "mle_report.RDS"))
+area_5 = readRDS(here(out_path, "5-Area-1960-04-SptQ", "mle_report.RDS"))
 
-# Movement parameters for 4 time blocks is pretty uncertain, but fits
-# to indices and tag recapture data improve slightly. Given high uncertainty
-# in movement dynamics, it may not be great to proceed with 4 time blocks (look at alternative blocking for time)
+par(mfrow = c(1,2))
+# SSB
+plot(1960:2021, area_1$SSB_yr, ylim = c(0, 315), type = 'l', xlab = "Year", ylab = "SSB", lwd = 3)
+lines(1960:2021, rowSums(area_5$SSB_yr), type = 'l', xlab = "Year", ylab = "SSB", col = "blue", lwd = 3)
+legend(x = c(1960, 1960), y = c(50, 50), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
-# 01-NegBin (Constant Tag Recovery) vs. 03-Time Block (3) Movement  ------------------------------------------------
-movement_blk_3_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_3_Move", "mle_report.RDS"))
-movement_blk_3_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_3_Move", "sd_report.RDS"))
+# Recruitment
+plot(1960:2021, area_1$recruitment_yr, ylim = c(0, 150), type = 'l', xlab = "Year", ylab = "Recruitment", lwd = 3)
+lines(1960:2021, rowSums(area_5$recruitment_yr), type = 'l', xlab = "Year", ylab = "SSB", col = "blue", lwd = 3)
+legend(x = c(1990, 1990), y = c(120, 120), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
-compare_2_models(
-  model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-03-Time_3_Move")
-  ),
-  model_name = c("01-NegBin-Constant", "03-Time3Move"),
-  fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_03_Time3Move.pdf"
-)
+par(mfrow = c(2,3))
+# F Fixed Gear
+plot(1960:2021, colSums(area_5$annual_F_fixed), type = 'l',col = "blue", lwd = 3,  xlab = "Year", ylab = "F (Fixed Gear)")
+lines(1960:2021, area_1$annual_F_fixed,  type = 'l', lwd = 3)
+legend(x = c(1980, 1980), y = c(0.8, 0.8), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
-# Fits to tag recapture data improve, as well as to indices. Movement parameters are
-# less uncertain, and this is a more flexible parmaeterization than 2 time blocks,
-# Likely will go forward with this in future investigations.
+# Proxy Fixed Gear Harvest Rate
+plot(1960:2021, t(area_1$fixed_fishery_catch) / area_1$total_biomass_yr, type = 'l', col = "black", lwd = 3, xlab = "Year", ylab = "Proxy Harvest Rate (Fixed Gear - Catch / Total Biomass)")
+lines(1960:2021, rowSums(t(area_5$fixed_fishery_catch)) / rowSums(area_5$total_biomass_yr), col = "blue", lwd = 3)
+legend(x = c(1980, 1980), y = c(0.02, 0.02), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
-# 01-NegBin (Constant Tag Recovery) vs. 03-Time Block (2) Movement  ------------------------------------------------
-movement_blk_2_rep <- readRDS(here(out_path, "5-Area-1960-03-Time_2_Move", "mle_report.RDS"))
-movement_blk_2_sd <- readRDS(here(out_path, "5-Area-1960-03-Time_2_Move", "sd_report.RDS"))
+# Correlation between F spatial vs. non spatial
+plot(colSums(area_5$annual_F_fixed), area_1$annual_F_fixed, xlab = "F (Fixed Gear Spatial)", ylab = "F (Fixed Gear 1Area)")
 
-compare_2_models(
-  model_path = list(
-    model_1 = here(out_path, "5-Area-1960-01-NegBin"),
-    model_2 = here(out_path, "5-Area-1960-03-Time_2_Move")
-  ),
-  model_name = c("01-NegBin-Constant", "03-Time2Move"),
-  fig_path = here("Figs", "5-Area-1960"),
-  fig_name = "01_NegBin_vs_03_Time2Move.pdf"
-)
+# F Trawl Gear
+plot(1960:2021, colSums(area_5$annual_F_trwl), type = 'l',col = "blue", lwd = 3,  xlab = "Year", ylab = "F (Trawl Gear)")
+lines(1960:2021, area_1$annual_F_trwl,  type = 'l', lwd = 3)
+legend(x = c(1980, 1980), y = c(0.8, 0.8), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
-# Fits to tag recapture data improve ever so slightly but not much improvement, 
-# neither for indices. Movement dynmiacs are less uncertain and they seem fairly reliable.
+# Proxy Fixed Gear Harvest Rate
+plot(1960:2021, t(area_1$annual_trwl_catch_pred) / area_1$total_biomass_yr, type = 'l', col = "black", lwd = 3, xlab = "Year", ylab = "Proxy Harvest Rate (Trawl Gear - Catch / Total Biomass)")
+lines(1960:2021, rowSums(t(area_5$annual_trwl_catch_pred)) / rowSums(area_5$total_biomass_yr), col = "blue", lwd = 3)
+legend(x = c(1980, 1980), y = c(0.04, 0.04), legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
 
+# Correlation between F spatial vs. non spatial
+plot(colSums(area_5$annual_F_trwl), area_1$annual_F_trwl, xlab = "F (Trawl Gear Spatial)", ylab = "F (Trawl Gear 1Area)")
