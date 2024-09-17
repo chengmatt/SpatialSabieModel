@@ -141,21 +141,26 @@ for(i in 1:data$n_regions) {
   } # end t block
 } # end i region
 
+# Fixed Gear Fishery Selectivity
+data$fixed_sel_type = as.vector(rep(0, 1), mode = "integer") # logistic selectivity for males and females
+data$fixed_sel_by_year_indicator = as.vector(rep(0, length(data$years)), mode = "integer")
+parameters$ln_fixed_sel_pars = array(0, dim = c(length(unique(data$fixed_sel_by_year_indicator)), 2, 2))
+parameters$ln_srv_sel_pars[] = log(0.5) # starting this elswhere so it doesn't got off the rails
+parameters$ln_tag_phi = log(2)
 validate_input_data_and_parameters(data, parameters)
 
 setwd(here("src"))
-compile("TagIntegrated.cpp")
-dyn.load(dynlib('TagIntegrated'))
-dyn.unload(dynlib('TagIntegrated'))
-dyn.load(dynlib('TagIntegrated'))
+compile("TagIntegrated_v1.cpp")
+dyn.load(dynlib('TagIntegrated_v1'))
+dyn.unload(dynlib('TagIntegrated_v1'))
+dyn.load(dynlib('TagIntegrated_v1'))
 
 # Run Model ---------------------------------------------------------------
-data$tag_likelihood = 2
-parameters$logistic_tag_reporting_rate[] = logit(0.99999)
-na_map = fix_pars(par_list = parameters, pars_to_exclude = c("ln_tag_phi")) # fix negative binomial parameter
+data$tag_likelihood = 1
+# na_map = fix_pars(par_list = parameters, pars_to_exclude = c("ln_tag_phi")) # fix negative binomial parameter
 map_fixed_pars = set_up_parameters(data = data, 
                                    parameters = parameters,
-                                   na_map = na_map,
+                                   na_map = NULL,
                                    srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
                                    srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
                                    fixed_sel_first_shared_by_sex  = fixed_sel_first_param_shared_by_sex,
@@ -173,7 +178,7 @@ map_fixed_pars = set_up_parameters(data = data,
 # make ad object
 mle_obj = MakeADFun(data, parameters, 
                     map = map_fixed_pars, 
-                    DLL="TagIntegrated", hessian = T)
+                    DLL="TagIntegrated_v1", hessian = T)
 
 pre_optim_sanity_checks(mle_obj)
 

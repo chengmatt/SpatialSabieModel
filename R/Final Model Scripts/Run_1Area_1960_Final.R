@@ -20,6 +20,10 @@ parameters = readRDS(file = here(out_path, "parameters.RDS"))
 multiple_shoot = TRUE # whether to do multiple shooting
 shoot_iter = 7 # number of iterations to multiple shoot for
 
+# Checking to make sure q scale is reasonable
+# data$obs_srv_bio[] = data$obs_srv_bio[] / 1e3
+# data$obs_srv_se[]  = data$obs_srv_se[] / 1e3
+
 # Run Models ---------------------------------------------------------------
 
 ### Base --------------------------------------------------------------------
@@ -52,6 +56,11 @@ est_catch_sd = F # fixed catch sd
 est_movement = F # fixed movement
 est_prop_male_recruit = "off" # fixed sex-ratio
 
+# Fixed Gear Fishery Selectivity
+data$fixed_sel_type = as.vector(rep(0, 1), mode = "integer") # logistic selectivity for males and females
+data$fixed_sel_by_year_indicator = as.vector(rep(0, length(data$years)), mode = "integer")
+parameters$ln_fixed_sel_pars = array(0, dim = c(length(unique(data$fixed_sel_by_year_indicator)), 2, 2))
+
 # Map parameters off
 map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
                                    na_map = NULL,
@@ -68,6 +77,14 @@ map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
                                    est_catch_sd = est_catch_sd,
                                    est_movement = est_movement,
                                    est_prop_male_recruit = est_prop_male_recruit)
+
+# Share deltas by fishery (estimate sex-specific but share across blocks)
+ln_fixed_sel_pars = factor(c(1,2,3,2))
+# Share deltas by survey (estimate sex-specific but share across fleets)
+ln_srv_sel_pars = factor(c(1,2,3,4,5,2,6,4))
+map_fixed_pars$ln_fixed_sel_pars = ln_fixed_sel_pars
+map_fixed_pars$ln_srv_sel_pars = ln_srv_sel_pars
+parameters$ln_trwl_sel_pars[] = log(5) # get it stuck out of local minima
 
 if(multiple_shoot == TRUE) {
   for(i in 1:shoot_iter) {
