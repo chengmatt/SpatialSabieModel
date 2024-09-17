@@ -22,6 +22,20 @@ multiple_shoot = TRUE # whether to do multiple shooting
 shoot_iter = 10 # number of iterations to multiple shoot for
 
 # Run Models ---------------------------------------------------------------
+# Base Parameterization
+# Share survey and fishery selex delta parameters by sex
+# Fishery and survey selex is time-invariant
+# Don't estimate last 2 years of recruitment
+# Tag likelihood is Poisson
+# Movement is time-and age-invariant
+# Catchability is constant
+
+# The following models build on:
+# 1) how movement is parameterized - i.e., age vs. time vs. agextime varying in blocks
+# 2) tag likelihoods (poisson vs. negative binomial vs. multinomial)
+# 3) Reporting rates (decadal, block via fishery, or spatially reporting)
+# and 4) whether spatial q is used for abundane indices
+
 ### No Time Blocks -----------------------------------------------------------
 
 # Set up path for outputting model
