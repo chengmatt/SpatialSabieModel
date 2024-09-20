@@ -19,7 +19,7 @@ files = list.files(out_path)
 files = files[!str_detect(files, ".RDS")]
 conv_all = data.frame()
 for(i in 1:length(files)) {
-  mod = readRDS(here(out, files[i], 'sd_report.RDS'))
+  mod = readRDS(here(out_path, files[i], 'sd_report.RDS'))
   tmp = data.frame(mod = files[i], pd = mod$pdHess, grad = max(abs(mod$gradient.fixed)))
   conv_all = rbind(tmp ,conv_all)
 }

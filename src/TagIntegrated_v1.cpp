@@ -208,8 +208,9 @@ Type objective_function<Type>::operator() ()
 
 
   PARAMETER_ARRAY(transformed_movement_pars);               // transformed parameters for movmenet (consider both simplex and logistic? or what ever it is). dimension:  (n_regions - 1) x n_regions
-
-
+  PARAMETER_MATRIX(trans_movement_scalar);
+  PARAMETER(ln_movement_sigma);
+  
   // Estimated if F_method == 0, otherwise these are derived.
   PARAMETER(ln_fixed_F_avg);                                // log average longline Fishing mortality
   PARAMETER_ARRAY(ln_fixed_F_devs);                         // Annual fishing mortality deviation dim: n_regions x n_years
@@ -400,6 +401,7 @@ Type objective_function<Type>::operator() ()
   }
 
   // deal with movement
+  Type move_nLL = 0;
   array<Type> movement_matrix(n_regions,n_regions,n_movement_time_blocks,n_movement_age_blocks);                  // n_regions x n_regions. Rows sum = 1 (aka source)
   movement_matrix.fill(1.0);
   if(n_regions > 1) {
@@ -409,16 +411,30 @@ Type objective_function<Type>::operator() ()
         //vector<Type> cache_log_k_value(n_regions - 1);
         for(int k = 0; k < (n_regions - 1); k++)
           cache_log_k_value[k] = log(n_regions - 1 - k);
+        
+        
         for(region_ndx = 0; region_ndx < n_regions; ++region_ndx) {
           Type stick_length = 1.0;
+          
           for (int k = 0; k < (n_regions - 1); ++k) {
-            movement_matrix(region_ndx, k, move_ndx, ageblk_ndx) = stick_length * 
-            invlogit(transformed_movement_pars(k, region_ndx, move_ndx, ageblk_ndx) - cache_log_k_value(k));
+              movement_matrix(region_ndx, k, move_ndx, ageblk_ndx) = stick_length * 
+                invlogit(transformed_movement_pars(k, region_ndx, 0, ageblk_ndx) - cache_log_k_value(k));
             stick_length -= movement_matrix(region_ndx, k, move_ndx, ageblk_ndx);
           } // end k index
+          
+          for (int k = 0; k < n_regions; ++k) {
+            if(k == region_ndx) {
+              movement_matrix(region_ndx, k, move_ndx, ageblk_ndx) *= exp(trans_movement_scalar(move_ndx, ageblk_ndx));
+            }
+            movement_matrix.col(ageblk_ndx).col(move_ndx).rotate(1).col(k) /= movement_matrix.col(ageblk_ndx).col(move_ndx).rotate(1).col(k).sum();
+          } // end k index
+          
           // plus group
           movement_matrix(region_ndx, n_regions - 1, move_ndx, ageblk_ndx) = stick_length;
         } // end region index
+        Type move_sig = exp(ln_movement_sigma);
+        move_nLL -= dnorm(trans_movement_scalar(move_ndx, ageblk_ndx), -pow(move_sig,2)/2, move_sig, true); 
+        
       } // end time block index
     } // end age block index
   } // end if
@@ -2018,6 +2034,6 @@ Type objective_function<Type>::operator() ()
   // REMOVE objects after this comment.
   // I created them for reporting interim calculations debugging etc
 
-  return nll.sum();
+  return nll.sum() + move_nLL;
 }
 

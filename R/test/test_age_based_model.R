@@ -112,8 +112,10 @@ if(include_tag_recoveries) {
 
 # Set up movement parameterization ----------------------------------------
 # Time variation
-data$n_movement_time_blocks = 1
-data$movement_time_block_indicator = c(rep(0, length(1960:1990)), rep(0, length(1990:2021)))
+# data$n_movement_time_blocks = 1
+# data$movement_time_block_indicator = c(rep(0, length(1960:1990)), rep(0, length(1990:2021)))
+data$n_movement_time_blocks = length(data$years)
+data$movement_time_block_indicator = seq(0, length(data$years) - 1)
 
 # Age variation
 data$n_movement_age_blocks = 3 # three age blocks
@@ -130,13 +132,15 @@ move_matrix = move_matrix + rlnorm(n = data$n_regions * data$n_regions, log(0.01
 move_matrix = sweep(move_matrix, 1, STATS = rowSums(move_matrix), "/")
 
 # set up movement pars
-parameters$transformed_movement_pars = array(NA, c(data$n_regions - 1, ncol = data$n_regions, data$n_movement_time_blocks, data$n_movement_age_blocks))
+# parameters$transformed_movement_pars = array(NA, c(data$n_regions - 1, ncol = data$n_regions, data$n_movement_time_blocks, data$n_movement_age_blocks))
 # parameters$transformed_movement_pars = array(NA, c(data$n_regions - 1, ncol = data$n_regions, data$n_movement_time_blocks))
+parameters$transformed_movement_pars = array(NA, c(data$n_regions - 1, ncol = data$n_regions, 1, data$n_movement_age_blocks))
 
 for(i in 1:data$n_regions) {
   for(t in 1:data$n_movement_time_blocks) {
     for(a in 1:data$n_movement_age_blocks) {
-      parameters$transformed_movement_pars[,i,t,a] = simplex(move_matrix[i,])
+      parameters$transformed_movement_pars[,i,1,a] = simplex(move_matrix[i,])
+      # parameters$transformed_movement_pars[,i,t,a] = simplex(move_matrix[i,])
     } # end a block
   } # end t block
 } # end i region
@@ -149,6 +153,9 @@ parameters$ln_srv_sel_pars[] = log(0.5) # starting this elswhere so it doesn't g
 parameters$ln_tag_phi = log(2)
 validate_input_data_and_parameters(data, parameters)
 
+parameters$trans_movement_scalar = matrix(0, nrow = length(data$years), ncol = data$n_movement_age_blocks)
+parameters$ln_movement_sigma = log(0.05)
+
 setwd(here("src"))
 compile("TagIntegrated_v1.cpp")
 dyn.load(dynlib('TagIntegrated_v1'))
@@ -156,11 +163,11 @@ dyn.unload(dynlib('TagIntegrated_v1'))
 dyn.load(dynlib('TagIntegrated_v1'))
 
 # Run Model ---------------------------------------------------------------
-data$tag_likelihood = 1
-# na_map = fix_pars(par_list = parameters, pars_to_exclude = c("ln_tag_phi")) # fix negative binomial parameter
+data$tag_likelihood = 0
+na_map = fix_pars(par_list = parameters, pars_to_exclude = c("ln_tag_phi")) # fix negative binomial parameter
 map_fixed_pars = set_up_parameters(data = data, 
                                    parameters = parameters,
-                                   na_map = NULL,
+                                   na_map = na_map,
                                    srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
                                    srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
                                    fixed_sel_first_shared_by_sex  = fixed_sel_first_param_shared_by_sex,
@@ -175,9 +182,12 @@ map_fixed_pars = set_up_parameters(data = data,
                                    est_movement = est_movement,
                                    est_prop_male_recruit = est_prop_male_recruit)
 
+map_fixed_pars$ln_movement_sigma = factor(NA)
+
 # make ad object
 mle_obj = MakeADFun(data, parameters, 
                     map = map_fixed_pars, 
+                    # random = "trans_movement_scalar",
                     DLL="TagIntegrated_v1", hessian = T)
 
 pre_optim_sanity_checks(mle_obj)
@@ -200,6 +210,20 @@ try_improve = tryCatch(expr =
 post_optim_sanity_checks(mle_obj = mle_obj, mle_pars = mle_obj$env$last.par.best)
 mle_report = mle_obj$report(mle_obj$env$last.par.best) # get report
 sd_report = sdreport(mle_obj)
+
+plot(1960:2021,
+     exp(sd_report$par.fixed[names(sd_report$par.fixed) == "trans_movement_scalar"]), 
+     type = 'l')
+
+move_scal_mat = matrix(exp(sd_report$par.fixed[names(sd_report$par.fixed) == "trans_movement_scalar"]),
+                       62, 3)
+
+par(mfrow = c(1,3))
+plot(1960:2021, move_scal_mat[,1], type = 'l', lwd  = 3, ylim = c(0.8, 1.3))
+plot(1960:2021, move_scal_mat[,2], type = 'l', lty = 2, lwd = 3, ylim = c(0, 1.5))
+plot(1960:2021, move_scal_mat[,3], type = 'l', lty = 3, lwd = 3, ylim = c(0, 1.5))
+
+plot(move_scal_mat[,1], mle_report$recruitment_yr[,1])
 
 # Convert TMB code to R (testing) ------------------------------------------
 mod = readRDS(here(out_path, "5-Area-1960-01-Poisson", "mle_report.RDS"))

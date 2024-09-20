@@ -18,8 +18,10 @@ require(here); require(tidyverse); require(expm); require(MASS); library(here)
 # Read in models
 model_list = list() # list to store models in 
 model_sd = list() # list to store models in (sdrep)
+model_dat = list() # list to store model data
 for(i in 1:length(model_path)) model_list[[i]] = readRDS(file.path(paste(model_path[[i]], "/mle_report.RDS", sep = "")))
 for(i in 1:length(model_path)) model_sd[[i]] = readRDS(file.path(paste(model_path[[i]], "/sd_report.RDS", sep = "")))
+for(i in 1:length(model_path)) model_dat[[i]] = readRDS(file.path(paste(model_path[[i]], "/data.RDS", sep = "")))
 
 # Read in abundance index used
 design_survey_index = readRDS(file = here("Data", "Survey", "regional_abundance_estimates.RDS"))
@@ -722,9 +724,98 @@ print(
 )
   
 
-# Selectivity -------------------------------------------------------------
+# Selectivity + Harvest Rate -------------------------------------------------------------
+sel_all = data.frame()
+harv_all = data.frame()
+for(i in 1:length(model_list)) {
+  
+  # Trawl gear
+  trwl_f = reshape2::melt(model_list[[i]]$sel_trwl_f) %>% mutate(model = model_name[i], type = "Trawl Fishery F")
+  trwl_m = reshape2::melt(model_list[[i]]$sel_trwl_m) %>% mutate(model = model_name[i], type = "Trawl Fishery M")
+  
+  # Fixed gear
+  fixed_f = reshape2::melt(model_list[[i]]$sel_fixed_f) %>% mutate(model = model_name[i], type = "Fixed Gear Fishery F")
+  fixed_m = reshape2::melt(model_list[[i]]$sel_fixed_m) %>% mutate(model = model_name[i], type = "Fixed Gear Fishery M")
+  
+  # Survey gear (dom)
+  srv_f = reshape2::melt(model_list[[i]]$sel_srv_f) %>% mutate(model = model_name[i], Var3 = ifelse(Var3 == 1, "JP Srv F", "Domestic Srv F")) %>% 
+    rename(type = Var3)
+  srv_m = reshape2::melt(model_list[[i]]$sel_srv_m) %>% mutate(model = model_name[i], Var3 = ifelse(Var3 == 1, "JP Srv M", "Domestic Srv M")) %>% 
+    rename(type = Var3)
+  
+  # Get weight at age to calcualte harvest rate
+  waa_f = array(model_dat[[i]]$female_mean_weight_by_age, dim = c(length(data$ages), data$n_regions, length(data$years) + 1))
+  waa_m = array(model_dat[[i]]$male_mean_weight_by_age, dim = c(length(data$ages), data$n_regions, length(data$years) + 1))
+  
+  # Get exploitable biomass for fixed gear at age
+  expl_fixed_age = as.vector(model_list[[i]]$sel_fixed_f) * model_list[[i]]$natage_f * waa_f +
+                    as.vector(model_list[[i]]$sel_fixed_m) * model_list[[i]]$natage_m * waa_m 
+  
+  pred_fixed_cat = model_list[[i]]$fixed_fishery_catch # get predicted fixed gear catch
+  
+  # Get exploitable biomass for trawl gear at age
+  expl_trwl_age = as.vector(model_list[[i]]$sel_trwl_f) * model_list[[i]]$natage_f * waa_f +
+                  as.vector(model_list[[i]]$sel_trwl_m) * model_list[[i]]$natage_m * waa_m 
+  
+  pred_trawl_cat = model_list[[i]]$trwl_fishery_catch # get predicted fixed gear catch
+  
+  # Sum across ages
+  expl_fixed = apply(expl_fixed_age, c(2,3), sum)
+  expl_trwl = apply(expl_trwl_age, c(2,3), sum)
+  
+  # Munge these into a dataframe
+  expl_fixed_df = reshape2::melt(expl_fixed) %>% rename(expl = value) %>% 
+    left_join(reshape2::melt(pred_fixed_cat) %>% rename(cat = value), by = c("Var1", "Var2")) %>% 
+    rename(Region = Var1, Year = Var2) %>% mutate(model = model_name[i], type = "Fixed Gear")
+  
+  expl_trwl_df = reshape2::melt(expl_trwl) %>% rename(expl = value) %>% 
+    left_join(reshape2::melt(pred_trawl_cat) %>% rename(cat = value), by = c("Var1", "Var2")) %>% 
+    rename(Region = Var1, Year = Var2) %>% mutate(model = model_name[i], type = "Trawl Gear")
+  
+  # Get total exploitaiton rate as well by summing across
+  total_expl_fixed_df = expl_fixed_df %>% group_by(Year, model, type) %>% summarize(expl = sum(expl), cat = sum(cat)) %>% 
+    mutate(Region = 1e3)
+  total_expl_trwl_df = expl_trwl_df %>% group_by(Year, model, type) %>% summarize(expl = sum(expl), cat = sum(cat)) %>% 
+    mutate(Region = 1e3)
+  
+  # bind all harvest rates
+  harv_all = rbind(harv_all, expl_fixed_df, expl_trwl_df, total_expl_fixed_df, total_expl_trwl_df)
+  
+  # bind all
+  sel_all = rbind(sel_all, trwl_f, trwl_m, fixed_f, fixed_m, srv_f, srv_m)
+}
+
+print(
+  ggplot(sel_all, aes(x = Var1, y = value, color = model)) +
+    geom_line(lwd = 1.3) +
+    facet_wrap(~type) +
+    theme_bw() +
+    labs(x = "Age", y = "Selectivity", color = "Model")
+)
+
+# Some residual munging for harvest rate
+harv_all = harv_all %>% 
+  mutate(
+    Region = case_when(
+      Region == 1 ~ "BS",
+      Region == 2 ~ "AI",
+      Region == 3 ~ "WGOA",
+      Region == 4 ~ "CGOA",
+      Region == 5 ~ "EGOA",
+      Region == 1e3 ~ "Total",
+    ), Region = factor(Region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA", "Total")),
+    model = factor(model, levels = model_name)
+  )
 
 
+
+print(
+  ggplot(harv_all, aes(x = Year + 1959, y = cat/expl, color = model)) +
+    geom_line(lwd = 0.85) +
+    facet_grid(Region ~ type, scales = "free") +
+    theme_bw() +
+    labs(x = "Year", y = "Harvest rate", color = "Model")
+)
 
 dev.off()
   
