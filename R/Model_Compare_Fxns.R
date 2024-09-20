@@ -785,6 +785,9 @@ for(i in 1:length(model_list)) {
   sel_all = rbind(sel_all, trwl_f, trwl_m, fixed_f, fixed_m, srv_f, srv_m)
 }
 
+# Some residual munging
+sel_all = sel_all %>% mutate(model = factor(model, levels = model_name))
+
 print(
   ggplot(sel_all, aes(x = Var1, y = value, color = model)) +
     geom_line(lwd = 1.3) +
@@ -806,8 +809,6 @@ harv_all = harv_all %>%
     ), Region = factor(Region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA", "Total")),
     model = factor(model, levels = model_name)
   )
-
-
 
 print(
   ggplot(harv_all, aes(x = Year + 1959, y = cat/expl, color = model)) +
