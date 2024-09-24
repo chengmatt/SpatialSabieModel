@@ -20,7 +20,7 @@ files = files[!str_detect(files, ".RDS")]
 conv_all = data.frame()
 for(i in 1:length(files)) {
   mod = readRDS(here(out_path, files[i], 'sd_report.RDS'))
-  tmp = data.frame(mod = files[i], pd = mod$pdHess, grad = max(abs(mod$gradient.fixed)))
+  tmp = data.frame(mod = files[i], pdHess = mod$pdHess, grad = max(abs(mod$gradient.fixed)))
   conv_all = rbind(tmp ,conv_all)
 }
 
@@ -79,3 +79,24 @@ compare_5sptl_models(
   fig_name = "04-SptQ.pdf"
 )
 
+
+# Compare Final to 1area --------------------------------------------------
+
+area1 = readRDS(here("Output", "Final Models", "1-Area-1960", "1-Area-1960-Final", "mle_report.RDS"))
+area5 = readRDS(here(out_path, "5-Area-1960-04-SptQ", "mle_report.RDS"))
+
+par(mfrow = c(1,3))
+# SSB
+plot(1960:2021, area1$SSB_yr, ylim = c(0, 300), type = 'l', lwd = 3, xlab = "Year", ylab = "SSB")
+lines(1960:2021, rowSums(area5$SSB_yr), ylim = c(0, 300), type = 'l', lwd = 3, col = "blue")
+legend(x = 1990, y = 90, legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
+
+# Depletion
+plot(1960:2021, area1$SSB_yr / area1$SSB_yr[1], type = 'l', lwd = 3, xlab = "Year", ylab = "SSB", ylim = c(0, 1))
+lines(1960:2021, rowSums(area5$SSB_yr) / rowSums(area5$SSB_yr)[1],  type = 'l', lwd = 3, col = "blue")
+legend(x = 1990, y = 0.2, legend = c("1-Area", "5-Area"), fill = c("black", "blue"))
+
+# Rec
+plot(1960:2021, area1$recruitment_yr, ylim = c(0, 200), type = 'l', lwd = 3, xlab = "Year", ylab = "Rec")
+lines(1960:2021, rowSums(area5$recruitment_yr), ylim = c(0, 200), type = 'l', lwd = 3, col = "blue")
+legend(x = 1990, y = 90, legend = c("1-Area", "5-Area"), fill = c("black", "blue"))

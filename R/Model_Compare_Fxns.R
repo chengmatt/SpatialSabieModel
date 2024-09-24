@@ -744,8 +744,8 @@ for(i in 1:length(model_list)) {
     rename(type = Var3)
   
   # Get weight at age to calcualte harvest rate
-  waa_f = array(model_dat[[i]]$female_mean_weight_by_age, dim = c(length(data$ages), data$n_regions, length(data$years) + 1))
-  waa_m = array(model_dat[[i]]$male_mean_weight_by_age, dim = c(length(data$ages), data$n_regions, length(data$years) + 1))
+  waa_f = array(model_dat[[i]]$female_mean_weight_by_age, dim = c(length(model_dat[[i]]$ages), model_dat[[i]]$n_regions, length(model_dat[[i]]$years) + 1))
+  waa_m = array(model_dat[[i]]$male_mean_weight_by_age, dim = c(length(model_dat[[i]]$ages), model_dat[[i]]$n_regions, length(model_dat[[i]]$years) + 1))
   
   # Get exploitable biomass for fixed gear at age
   expl_fixed_age = as.vector(model_list[[i]]$sel_fixed_f) * model_list[[i]]$natage_f * waa_f +
