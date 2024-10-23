@@ -188,11 +188,15 @@ fixed_catch = full_catch_df %>% filter(fmp_gear == "HAL") %>% ungroup() %>% dply
 trwl_catch = data.frame(sab_inputs$trwl_Catch)
 fixed_catch = data.frame(sab_inputs$ll_Catch)
 
+# Read in 5-area data files to make sure catch data is consistent with 5-area model
+model_5area_dat = readRDS(file.path(paste(here("Output", "Final Models", "5-Area-1960"), "/data.RDS", sep = ""))) # model model report
+
+
 # Replace 0 catch with small values
-fixed_catch = fixed_catch %>% mutate(across(.fns = ~replace(., . ==  0 , 0.001)))
-trwl_catch = trwl_catch %>% mutate(across(.fns = ~replace(., . ==  0 , 0.001)))
-data$trwl_fishery_catch = matrix(trwl_catch$sab_inputs.trwl_Catch[sab_inputs$yrs[1]:sab_inputs$yrs[2] %in% years], nrow = n_regions, ncol = n_projyears)
-data$fixed_fishery_catch = matrix(fixed_catch$sab_inputs.ll_Catch[sab_inputs$yrs[1]:sab_inputs$yrs[2] %in% years], nrow = n_regions, ncol = n_projyears)
+fixed_catch = colSums(model_5area_dat$fixed_fishery_catch)
+trwl_catch = colSums(model_5area_dat$trwl_fishery_catch)
+data$trwl_fishery_catch = matrix(trwl_catch, nrow = n_regions, ncol = n_projyears)
+data$fixed_fishery_catch = matrix(fixed_catch, nrow = n_regions, ncol = n_projyears)
 
 ### Fishery and Survey Selectivity -----------------------------------------------------
 # Fixed Gear Fishery Selectivity
@@ -210,21 +214,97 @@ data$srv_sel_type = matrix(0, nrow = 1, ncol = data$n_surveys) # logistic ("Earl
 data$srv_sel_by_year_indicator = matrix(0, nrow = n_projyears, ncol = data$n_surveys) # blocks for survey
 
 ### Tagging  ----------------------------------------------------------------
-tag_release_years = max(years) # maximum years
-data$tag_release_event_this_year = rep(0, n_years) ## no tag releases (skip tag releases)
+tag_release_years = c(1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 
+                      1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 1998, 
+                      1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 
+                      2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
+                      2020, 2021)
+
+data$tag_release_event_this_year = rep(0, n_years) # initialize vector
+data$tag_release_event_this_year[data$years %in% tag_release_years] = 1 # do tag releases in the years specified above
 data$male_tagged_cohorts_by_age = array(0, dim = c(n_ages, n_regions, length(tag_release_years)))
 data$female_tagged_cohorts_by_age = array(0, dim = c(n_ages, n_regions, length(tag_release_years)))
-data$n_years_to_retain_tagged_cohorts_for = 1 # years tagged cohorts tracked in the tagged partition before merging
-data$initial_tag_induced_mortality = rep(0, length(tag_release_years)) # initial tag induced mortality
-data$annual_tag_shedding_rate = 0.00 # tag shedding
+data$n_years_to_retain_tagged_cohorts_for = 15 # retain tagged cohorts for 15 years (dump after) 
+data$initial_tag_induced_mortality = rep(0.1, length(tag_release_years)) # tag mortality
+data$annual_tag_shedding_rate = 0.02 # tag shedding
 
-# don't include any tag data
-include_tag_recoveries = T
+# Loop through to fill in stuff
+for(y_ndx in 1:length(tag_release_years)) {
+  this_release_year = tag_release_df %>% filter(release_year == tag_release_years[y_ndx])
+  if(nrow(this_release_year) > 0) {
+    regions_to_release = unique(this_release_year$region_release) 
+    for(r_ndx in 1:length(regions_to_release)) {
+      region_ndx = region_key$TMB_ndx[which(region_key$area %in% regions_to_release[r_ndx])] + 1
+      data$male_tagged_cohorts_by_age[, region_ndx, y_ndx] = (this_release_year %>% filter(sex == "M", region_release == regions_to_release[r_ndx]))$Nage_at_release
+      data$female_tagged_cohorts_by_age[, region_ndx, y_ndx] = (this_release_year %>% filter(sex == "F", region_release == regions_to_release[r_ndx]))$Nage_at_release
+    } # end r ndx
+  } else {
+    ## no tag release event
+    data$tag_release_event_this_year[data$years %in% tag_release_years[y_ndx]] = 0
+  }
+} # end y ndx
+
+# Munging tag recovery stuff
+include_tag_recoveries = T # tags are turned off using evaluate-tag-likelihood switch
 include_zero_tag_recovery_events = T
-tag_recovery_years = 1978:2020
+tag_recovery_years = 1978:2020 # tag recovery years
 data$tag_recovery_indicator_by_year = rep(0, n_years) ## no tag releases
 data$obs_tag_recovery = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
 data$tag_recovery_indicator = array(0, dim = c(n_regions * (data$n_years_to_retain_tagged_cohorts_for + 1), n_regions, length(tag_recovery_years)))
+
+if(include_tag_recoveries) {
+  data$tag_recovery_indicator_by_year[data$years %in% tag_recovery_years] = 1
+  tag_recovery_df$release_event_year = tag_recovery_df$recovery_year - tag_recovery_df$release_year
+  for(y_ndx in 1:length(tag_recovery_years)) {
+    this_recovery_year = tag_recovery_df %>% filter(recovery_year == tag_recovery_years[y_ndx])
+    recovery_regions = region_key$area[order(region_key$TMB_ndx)] ## all regions
+    for(r_ndx in 1:length(recovery_regions)) {
+      recovery_region_ndx = region_key$TMB_ndx[which(region_key$area %in% recovery_regions[r_ndx])] + 1
+      ## tags must be at liberty for at least one year
+      this_recovery_year_region = this_recovery_year %>% filter(release_year <= tag_recovery_years[y_ndx] - 1,release_year %in% tag_release_years, recovery_region == recovery_regions[r_ndx])
+      # now find how many 'release-event' tags we recovered during this recovery year and region.- which is release year x release region specific blahh!!!
+      for(release_event_ndx in 2:(data$n_years_to_retain_tagged_cohorts_for)) { # index starts at two because 1 indicates they were released this year and we don't consider recoveries until after a year at liberty
+        this_release_year = tag_recovery_years[y_ndx] - (release_event_ndx - 1)
+        if(!this_release_year %in% tag_release_years)
+          next; # there can be early release events in the data that are not in the model which can cause an NaN via 0 expected values in the likelihood calculations
+        if(release_event_ndx == (data$n_years_to_retain_tagged_cohorts_for + 1)) {
+          this_release_event_df = this_recovery_year_region %>% filter(release_year >= this_release_year) ## we can have a pooled tag group
+        } else {
+          this_release_event_df = this_recovery_year_region %>% filter(release_year == this_release_year)
+        }
+        release_regions = region_key$area[order(region_key$TMB_ndx)] ## all regions
+        for(rel_ndx in 1:length(release_regions)) {
+          ## not all release events in the data are actually released in the model
+          ## cannot have a recovery obs because this isn't a release event
+          release_ndx = region_key$TMB_ndx[which(region_key$area %in% release_regions[rel_ndx])] + 1
+          
+          mod_release_ndx = which(tag_release_years %in% this_release_year)
+          if((sum(data$male_tagged_cohorts_by_age[,release_ndx, mod_release_ndx]) + sum(data$female_tagged_cohorts_by_age[,release_ndx, mod_release_ndx])) <= 0)
+            next;
+          model_tag_release_ndx = get_tag_release_ndx(release_ndx, release_event_ndx, data$n_regions)
+          ## there was a possible observation for this release event
+          if(include_zero_tag_recovery_events)
+            data$tag_recovery_indicator[model_tag_release_ndx, recovery_region_ndx, y_ndx] = 1
+          ## not all regions were 'release events' check we actually released fish in this event
+          specific_recovery_df = this_release_event_df %>% filter(region_release == release_regions[rel_ndx])
+          if(nrow(specific_recovery_df) > 0) {
+            ## tell the model a recovery observation happened for this release event
+            data$tag_recovery_indicator[model_tag_release_ndx, recovery_region_ndx, y_ndx] = 1
+            ## get the recovery age frequency
+            data$obs_tag_recovery[model_tag_release_ndx, recovery_region_ndx, y_ndx] = ((specific_recovery_df %>% summarise(Nage_at_recovery = sum(Nage_at_recovery)))$Nage_at_recovery)
+          }
+        }
+      }
+    }
+  }
+}
+
+## are there observations for the plus group
+if(sum(data$tag_recovery_indicator[1:5,,]) != 0)
+  cat("found recoveries in the first year of release\n")
+if(sum(data$tag_recovery_indicator[(dim(data$tag_recovery_indicator)[1] - data$n_regions + 1):dim(data$tag_recovery_indicator)[1],,]) != 0)
+  cat("found recoveries in the plus group\n")
+cat("The number of recovery events ", sum(data$tag_recovery_indicator), "\n")
 
 ### Compositions ------------------------------------------------------------
 # fixed gear age frequencies
@@ -359,32 +439,40 @@ for(c_ndx in 1:length(countries)) { ## go backwards becuase its starts with Japa
 
 
 ### Abundance Indices -------------------------------------------------------
-design_survey_index = readRDS(file = file.path("Data", "Survey", "regional_abundance_estimates.RDS")) %>% filter(Year != 2022)
-# sum estimates over all years
-design_survey_index = design_survey_index %>% group_by(Year, Country) %>% 
-  summarise(sum_estimates = sum(area_RPN), sum_var = sum(var_area_RPN), 
-            se = sqrt(sum_var), LCI = sum_estimates - 2*se, UCI = sum_estimates + 2*se)
+design_survey_index = readRDS(file = file.path("Data", "Survey", "regional_abundance_estimates.RDS"))
+design_survey_index$area_lab = design_survey_index$NPFMC.Sablefish.Management.Area
 
-# fill in abundance indices
-data$obs_srv_bio = array(0, dim = c(n_regions, n_years, data$n_surveys))
-data$obs_srv_bio[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 2] = design_survey_index$sum_estimates[design_survey_index$Country == "United States"]
-data$obs_srv_bio[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 1] = design_survey_index$sum_estimates[design_survey_index$Country == "Japan"]
-# data$obs_srv_bio[1,data$years %in% japanese_fishery_cpue_df$years, 1] = japanese_fishery_cpue_df$obs[japanese_fishery_cpue_df$years %in% data$years]
+design_survey_index = design_survey_index %>% group_by(Country, Year) %>% 
+  summarise(sum_estimates = sum(area_RPN, na.rm = T), sum_var = sum(var_area_RPN, na.rm = T),
+            se = log_sigma(sqrt(sum_var)/sum_estimates), LCI = lognormal_CI(sum_estimates, se, 0.95)$lower,
+            UCI = lognormal_CI(sum_estimates, se, 0.95)$upper)
 
-# fill in associated se for abundance indices
-data$obs_srv_se = array(0.0, dim = c(n_regions, n_years,data$n_surveys))
-data$obs_srv_se[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 2] = design_survey_index$se[design_survey_index$Country == "United States"]
-data$obs_srv_se[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 1] = design_survey_index$se[design_survey_index$Country == "Japan"]
-# data$obs_srv_se[1,data$years %in% japanese_fishery_cpue_df$years, 1] = japanese_fishery_cpue_df$se[japanese_fishery_cpue_df$years %in% data$years]
+survey_index = design_survey_index %>% filter(Year %in% years)
+survey_index$year_f = factor(survey_index$Year, levels = year_lvls, ordered = T)
+survey_index_indicator = survey_index %>% ungroup() %>% dplyr::select(year_f, Year) %>% complete(year_f)  %>% pivot_wider(names_from = year_f, values_from = c(Year), values_fn = indicator_fun)
 
-data$srv_bio_indicator = array(0, dim = c(n_regions, n_years,data$n_surveys)) # indicator for survey index
-data$srv_bio_indicator[1,data$years %in% design_survey_index[design_survey_index$Country == "United States",]$Year, 2] = 1 # domestic suvey index
-data$srv_bio_indicator[1,data$years %in% design_survey_index[design_survey_index$Country == "Japan",]$Year, 1] = 1 # survey index for joint/jp
-# data$srv_bio_indicator[1,data$years %in% japanese_fishery_cpue_df$years, 1] = 1 # index for jp fishery
+# LL survey abundance indices
+data$obs_srv_bio = data$obs_srv_se = array(0, dim = c(n_regions, n_years, data$n_surveys))
+data$srv_bio_indicator = array(0, dim = c(n_regions, n_years,data$n_surveys))
+countries = unique(design_survey_index$Country)
+obs_years = unique(design_survey_index$Year)
+for(c_ndx in 1:length(countries)) {
+  for(y_ndx in 1:length(obs_years)) {
+    mod_yr_ndx = which(data$years == obs_years[y_ndx])
+    for(r_ndx in 1:length(region_key$area)) {
+      this_df = design_survey_index %>% filter(Country == countries[c_ndx], Year == obs_years[y_ndx])
+      if(nrow(this_df) > 0) {
+        data$srv_bio_indicator[r_ndx, mod_yr_ndx, c_ndx] = 1
+        data$obs_srv_bio[r_ndx, mod_yr_ndx, c_ndx] = this_df$sum_estimates## model numbers are in 1000's is in kilo tonnes
+        data$obs_srv_se[r_ndx, mod_yr_ndx, c_ndx] = (this_df$se)  # scale by 1000 as well
+      }
+    }
+  }
+}
 
 # likelihoods for abundance indices
-data$srv_bio_likelihood = rep(0, data$n_surveys) # manual lognormal call
-data$srv_obs_is_abundance = c(1,1) # calculate index by abundance
+data$srv_bio_likelihood = rep(1, data$n_surveys) # lognormal call (some differences in just how se are parameterized, it should be correct like this)
+data$srv_obs_is_abundance = rep(1, data$n_surveys) # calculate index by abundance
 data$srv_q_by_year_indicator = matrix(0, nrow = n_years, ncol = data$n_surveys)
 data$srv_q_transformation = rep(0, data$n_surveys) # log transformation
 data$q_is_nuisance = rep(0, data$n_surveys) # estiamted as a free parameter
@@ -485,3 +573,4 @@ ggsave(here(fig_path, "AbdIdx.png"),
          geom_point(size = 1) +
          geom_line(linewidth = 1.1) +
          theme_bw())
+

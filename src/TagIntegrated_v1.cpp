@@ -42,8 +42,10 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER(n_surveys);                          // number of surveys
   DATA_INTEGER(n_movement_time_blocks);             // number of movement time-blocks
   DATA_INTEGER(n_movement_age_blocks);              // number of movement age-blocks
+  DATA_INTEGER(n_movement_sex_blocks);              // number of movement sex-blocks
   DATA_INTEGER(age_based_movement);                 // whether to use age-based movement == 0, dont use, == 1 use
-
+  DATA_INTEGER(sex_based_movement);                 // whether to use sex-based movement == 0, dont use, == 1 use
+  
   int n_years = years.size();
   int n_projyears = n_years + n_projections_years;
   int n_ages = ages.size();
@@ -84,7 +86,8 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER(do_recruits_move);                   // if = 1 then recruitment will be applied after movement, if = 0 then recruitment will be applied after recruitment so there won't be movement
   DATA_IVECTOR(movement_time_block_indicator);      // length(n_years), 0 indicates use the first movement matrix, 1 = use the second movement matrix
   DATA_IVECTOR(movement_age_block_indicator);  // length(n_ages), indicator for movement age blocks
-
+  DATA_IVECTOR(movement_sex_block_indicator);  // length(n_ages), indicator for movement sex blocks
+  
   // Fishing stuff
   DATA_SCALAR(prop_F_hist);                         // Proportion of fixed_F_avg that is applied during initialization
   DATA_INTEGER(F_method );                          // 0 = estimate F's as free parameters, 1 = Hybrid method
@@ -208,9 +211,8 @@ Type objective_function<Type>::operator() ()
 
 
   PARAMETER_ARRAY(transformed_movement_pars);               // transformed parameters for movmenet (consider both simplex and logistic? or what ever it is). dimension:  (n_regions - 1) x n_regions
-  PARAMETER_MATRIX(trans_movement_scalar);
-  PARAMETER(ln_movement_sigma);
-  
+
+
   // Estimated if F_method == 0, otherwise these are derived.
   PARAMETER(ln_fixed_F_avg);                                // log average longline Fishing mortality
   PARAMETER_ARRAY(ln_fixed_F_devs);                         // Annual fishing mortality deviation dim: n_regions x n_years
@@ -401,42 +403,29 @@ Type objective_function<Type>::operator() ()
   }
 
   // deal with movement
-  Type move_nLL = 0;
-  array<Type> movement_matrix(n_regions,n_regions,n_movement_time_blocks,n_movement_age_blocks);                  // n_regions x n_regions. Rows sum = 1 (aka source)
+  array<Type> movement_matrix(n_regions,n_regions,n_movement_time_blocks,n_movement_age_blocks,n_movement_sex_blocks);                  // n_regions x n_regions. Rows sum = 1 (aka source)
   movement_matrix.fill(1.0);
   if(n_regions > 1) {
     vector<Type> cache_log_k_value(n_regions - 1);
-    for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ++ageblk_ndx) {
-      for(int move_ndx = 0; move_ndx < n_movement_time_blocks; ++move_ndx) {
-        //vector<Type> cache_log_k_value(n_regions - 1);
-        for(int k = 0; k < (n_regions - 1); k++)
-          cache_log_k_value[k] = log(n_regions - 1 - k);
-        
-        
-        for(region_ndx = 0; region_ndx < n_regions; ++region_ndx) {
-          Type stick_length = 1.0;
-          
-          for (int k = 0; k < (n_regions - 1); ++k) {
-              movement_matrix(region_ndx, k, move_ndx, ageblk_ndx) = stick_length * 
-                invlogit(transformed_movement_pars(k, region_ndx, 0, ageblk_ndx) - cache_log_k_value(k));
-            stick_length -= movement_matrix(region_ndx, k, move_ndx, ageblk_ndx);
-          } // end k index
-          
-          for (int k = 0; k < n_regions; ++k) {
-            if(k == region_ndx) {
-              movement_matrix(region_ndx, k, move_ndx, ageblk_ndx) *= exp(trans_movement_scalar(move_ndx, ageblk_ndx));
-            }
-            movement_matrix.col(ageblk_ndx).col(move_ndx).rotate(1).col(k) /= movement_matrix.col(ageblk_ndx).col(move_ndx).rotate(1).col(k).sum();
-          } // end k index
-          
-          // plus group
-          movement_matrix(region_ndx, n_regions - 1, move_ndx, ageblk_ndx) = stick_length;
-        } // end region index
-        Type move_sig = exp(ln_movement_sigma);
-        move_nLL -= dnorm(trans_movement_scalar(move_ndx, ageblk_ndx), -pow(move_sig,2)/2, move_sig, true); 
-        
-      } // end time block index
-    } // end age block index
+    for(int sexblk_ndx = 0; sexblk_ndx < n_movement_sex_blocks; ++ sexblk_ndx) {
+      for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ++ageblk_ndx) {
+        for(int move_ndx = 0; move_ndx < n_movement_time_blocks; ++move_ndx) {
+          //vector<Type> cache_log_k_value(n_regions - 1);
+          for(int k = 0; k < (n_regions - 1); k++)
+            cache_log_k_value[k] = log(n_regions - 1 - k);
+          for(region_ndx = 0; region_ndx < n_regions; ++region_ndx) {
+            Type stick_length = 1.0;
+            for (int k = 0; k < (n_regions - 1); ++k) {
+              movement_matrix(region_ndx, k, move_ndx, ageblk_ndx, sexblk_ndx) = stick_length * 
+                invlogit(transformed_movement_pars(k, region_ndx, move_ndx, ageblk_ndx, sexblk_ndx) - cache_log_k_value(k));
+              stick_length -= movement_matrix(region_ndx, k, move_ndx, ageblk_ndx, sexblk_ndx);
+            } // end k index
+            // plus group
+            movement_matrix(region_ndx, n_regions - 1, move_ndx, ageblk_ndx, sexblk_ndx) = stick_length;
+          } // end region index
+        } // end time block index
+      } // end age block index
+    } // end sex block index
   } // end if
     
   Type tag_phi = exp(ln_tag_phi);
@@ -686,11 +675,11 @@ Type objective_function<Type>::operator() ()
         int ageblk_ndx = movement_age_block_indicator(age_ndx); // extract movement age block index
         for(int to_ndx = 0; to_ndx < n_regions; ++to_ndx) {
           // Initial Stochastic Abundance
-          init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-          init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
           // Initial Equilibrium Abundance
-          equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-          equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
         } // end to_ndx
       } // end age_ndx
       // init_natage_f = (init_natage_f.matrix() * fixed_movement_matrix.col(0).matrix()).array();
@@ -702,11 +691,11 @@ Type objective_function<Type>::operator() ()
           int ageblk_ndx = movement_age_block_indicator(age_ndx); // extract movement age block index
         for(int to_ndx = 0; to_ndx < n_regions; ++to_ndx) {
           // Initial Stochastic Abundance
-          init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-          init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
           // Initial Equilibrium Abundance
-          equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-          equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+          equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
         } // end to_ndx
       } // end age_ndx
       // init_natage_f = (init_natage_f.matrix() * movement_matrix.col(0).col(0).matrix()).array();
@@ -752,11 +741,11 @@ Type objective_function<Type>::operator() ()
       int ageblk_ndx = movement_age_block_indicator(age_ndx); // extract movement age block index
       for(int to_ndx = 0; to_ndx < n_regions; ++to_ndx) {
         // Initial Stochastic Abundance
-        init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-        init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
         // Initial Equilibrium Abundance
-        equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-        equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * fixed_movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
       } // end to_ndx
     } // end age_ndx
     // init_natage_f = (init_natage_f.matrix() * fixed_movement_matrix.col(0).matrix()).array();
@@ -768,11 +757,11 @@ Type objective_function<Type>::operator() ()
       int ageblk_ndx = movement_age_block_indicator(age_ndx); // extract movement age block index
       for(int to_ndx = 0; to_ndx < n_regions; ++to_ndx) {
         // Initial Stochastic Abundance
-        init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-        init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        init_natage_f.col(to_ndx).col(age_ndx) = init_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        init_natage_m.col(to_ndx).col(age_ndx) = init_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
         // Initial Equilibrium Abundance
-        equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
-        equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        equilibrium_natage_f.col(to_ndx).col(age_ndx) = equilibrium_natage_f.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(0).col(ageblk_ndx).col(0).col(to_ndx).matrix();
+        equilibrium_natage_m.col(to_ndx).col(age_ndx) = equilibrium_natage_m.rotate(1).col(age_ndx).matrix().transpose() * movement_matrix.col(1).col(ageblk_ndx).col(0).col(to_ndx).matrix();
       } // end to_ndx
     } // end age_ndx
     // init_natage_f = (init_natage_f.matrix() * movement_matrix.col(0).col(0).matrix()).array();
@@ -1010,64 +999,64 @@ Type objective_function<Type>::operator() ()
         vector<Type> tmp_tag_pred_naa(n_ages); // temporary variable for storing tag NAA predictions
         vector<Type> tmp_tag_obs_naa(n_ages); // temporary variable for storing tag NAA observations
         if(tag_likelihood == 2) {
-          if(tag_recovery_indicator_by_year(year_ndx) == 1) { // if we have tagging data
-          for(tag_ndx = 0; tag_ndx < n_years_to_retain_tagged_cohorts_for; ++tag_ndx) {
-            release_year_ndx = year_ndx - tag_ndx; // in the early years we don't want to look beyond the first year will cause a crash
-            // if(release_year_ndx < 0)
-              // continue; std::cerr << "year_ndx " << year_ndx << " tag_ndx "<<  tag_ndx << " release_year_ndx " << release_year_ndx << " recovery region = " <<region_ndx << "\n";
-              for(release_region_ndx = 0; release_region_ndx < n_regions; ++release_region_ndx) {
-                tag_release_event_ndx = get_tag_release_event_ndx(release_region_ndx, tag_ndx, n_regions); // get tag release event
-                if(tag_recovery_indicator(tag_release_event_ndx, region_ndx, tag_recovery_counter) == 1) {
-                  
-                  // Get predicted catch at age for tags
-                  temp_numbers_at_age_m = tagged_natage_m.col(tag_release_event_ndx).col(region_ndx).vec() *
-                  F_fixed_m.col(year_ndx).col(region_ndx).vec() / Z_m.col(year_ndx).col(region_ndx).vec() *
-                  (1.0 - S_m.col(year_ndx).col(region_ndx).vec()); // males
-
-                  temp_numbers_at_age_f = tagged_natage_f.col(tag_release_event_ndx).col(region_ndx).vec() *
-                  F_fixed_f.col(year_ndx).col(region_ndx).vec() / Z_f.col(year_ndx).col(region_ndx).vec() *
-                  (1.0 - S_f.col(year_ndx).col(region_ndx).vec()); // females
-
-                  tmp_tag_pred_naa = temp_numbers_at_age_m + temp_numbers_at_age_f; // add tags together by age
-
-                  // numbers_at_age_and_sex.segment(0,n_ages) = temp_numbers_at_age_m;
-                  // numbers_at_age_and_sex.segment(n_ages,n_ages) = temp_numbers_at_age_f;
-                  tmp_tag_pred_naa *= tag_reporting_rate(region_ndx, tag_recovery_counter); // apply reporting rate
-                  
-                  if(age_based_movement == 0) {
-                    predicted_tags = tmp_tag_pred_naa.sum(); // sum to get total predicted tags
-                    predicted_tags = posfun(predicted_tags, eps_for_posfun, pen_posfun); // posfun to make sure no zero probabilities
-                    pred_tag_recovery(tag_release_event_ndx, region_ndx, tag_recovery_counter) = predicted_tags;
-                  } // if this is not age based movement
-                  
-                  if(age_based_movement == 1) {
-                    for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) {
-                      tmp_tag_pred_naa(age_ndx) = posfun(tmp_tag_pred_naa(age_ndx), eps_for_posfun, pen_posfun); // posfun to make sure no zero probabilities
-                    } // end age_ndx
-
-                    // Normalize
-                    tmp_tag_pred_naa /= tmp_tag_pred_naa.sum();
-                    pred_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx) = tmp_tag_pred_naa; // put into tag recovery
-                    tmp_tag_obs_naa = obs_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx); // put into temp container
-                    
-                    if(evaluate_tag_likelihood == 1) {
-                      // nll(7) -= dmultinom(tmp_tag_obs_naa, tmp_tag_pred_naa, true); // evaluate likelihood
-                      Type tmp_wt = tmp_tag_obs_naa.sum();
-                      if(tmp_wt > 0) nll(7) -= (tmp_wt * ((tmp_tag_obs_naa / tmp_wt + 1e-3) * log(tmp_tag_pred_naa + 1e-3))).sum();
-                    }
-                    
-                    SIMULATE {
-                      effective_sample_size = tmp_tag_obs_naa.sum();
-                      tmp_tag_obs_naa = rmultinom(tmp_tag_pred_naa, effective_sample_size);
-                      obs_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx) = tmp_tag_obs_naa;
-                    } // simulate block
-                  } // if we are doing age based movement
-                  
-                  } // if there are recoveries
-                } // end release region_ndx
-            
-            } // end tag_ndx
-          } // end if tag_recovery_indicator
+          // if(tag_recovery_indicator_by_year(year_ndx) == 1) { // if we have tagging data
+          //   for(tag_ndx = 0; tag_ndx < n_years_to_retain_tagged_cohorts_for; ++tag_ndx) {
+          //     release_year_ndx = year_ndx - tag_ndx; // in the early years we don't want to look beyond the first year will cause a crash
+          //     // if(release_year_ndx < 0)
+          //     // continue; std::cerr << "year_ndx " << year_ndx << " tag_ndx "<<  tag_ndx << " release_year_ndx " << release_year_ndx << " recovery region = " <<region_ndx << "\n";
+          //     for(release_region_ndx = 0; release_region_ndx < n_regions; ++release_region_ndx) {
+          //       tag_release_event_ndx = get_tag_release_event_ndx(release_region_ndx, tag_ndx, n_regions); // get tag release event
+          //       if(tag_recovery_indicator(tag_release_event_ndx, region_ndx, tag_recovery_counter) == 1) {
+          //         
+          //         // Get predicted catch at age for tags
+          //         temp_numbers_at_age_m = tagged_natage_m.col(tag_release_event_ndx).col(region_ndx).vec() *
+          //           F_fixed_m.col(year_ndx).col(region_ndx).vec() / Z_m.col(year_ndx).col(region_ndx).vec() *
+          //           (1.0 - S_m.col(year_ndx).col(region_ndx).vec()); // males
+          //         
+          //         temp_numbers_at_age_f = tagged_natage_f.col(tag_release_event_ndx).col(region_ndx).vec() *
+          //           F_fixed_f.col(year_ndx).col(region_ndx).vec() / Z_f.col(year_ndx).col(region_ndx).vec() *
+          //           (1.0 - S_f.col(year_ndx).col(region_ndx).vec()); // females
+          //         
+          //         tmp_tag_pred_naa = temp_numbers_at_age_m + temp_numbers_at_age_f; // add tags together by age
+          //         
+          //         // numbers_at_age_and_sex.segment(0,n_ages) = temp_numbers_at_age_m;
+          //         // numbers_at_age_and_sex.segment(n_ages,n_ages) = temp_numbers_at_age_f;
+          //         tmp_tag_pred_naa *= tag_reporting_rate(region_ndx, tag_recovery_counter); // apply reporting rate
+          //         
+          //         if(age_based_movement == 0) {
+          //           predicted_tags = tmp_tag_pred_naa.sum(); // sum to get total predicted tags
+          //           predicted_tags = posfun(predicted_tags, eps_for_posfun, pen_posfun); // posfun to make sure no zero probabilities
+          //           pred_tag_recovery(tag_release_event_ndx, region_ndx, tag_recovery_counter) = predicted_tags;
+          //         } // if this is not age based movement
+          //         
+          //         if(age_based_movement == 1) {
+          //           for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) {
+          //             tmp_tag_pred_naa(age_ndx) = posfun(tmp_tag_pred_naa(age_ndx), eps_for_posfun, pen_posfun); // posfun to make sure no zero probabilities
+          //           } // end age_ndx
+          //           
+          //           // Normalize
+          //           tmp_tag_pred_naa /= tmp_tag_pred_naa.sum();
+          //           pred_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx) = tmp_tag_pred_naa; // put into tag recovery
+          //           tmp_tag_obs_naa = obs_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx); // put into temp container
+          //           
+          //           if(evaluate_tag_likelihood == 1) {
+          //             // nll(7) -= dmultinom(tmp_tag_obs_naa, tmp_tag_pred_naa, true); // evaluate likelihood
+          //             Type tmp_wt = tmp_tag_obs_naa.sum();
+          //             if(tmp_wt > 0) nll(7) -= (tmp_wt * ((tmp_tag_obs_naa / tmp_wt + 1e-3) * log(tmp_tag_pred_naa + 1e-3))).sum();
+          //           }
+          //           
+          //           SIMULATE {
+          //             effective_sample_size = tmp_tag_obs_naa.sum();
+          //             tmp_tag_obs_naa = rmultinom(tmp_tag_pred_naa, effective_sample_size);
+          //             obs_tag_recovery.col(tag_recovery_counter).col(region_ndx).col(tag_release_event_ndx) = tmp_tag_obs_naa;
+          //           } // simulate block
+          //         } // if we are doing age based movement
+          //         
+          //       } // if there are recoveries
+          //     } // end release region_ndx
+          //     
+          //   } // end tag_ndx
+          // } // end if tag_recovery_indicator
         } else {
           
           if(tag_recovery_indicator_by_year(year_ndx) == 1) { // if we have tagging data
@@ -1078,20 +1067,78 @@ Type objective_function<Type>::operator() ()
                 if(tag_recovery_indicator(tag_release_event_ndx, region_ndx, tag_recovery_counter) == 1) {
                   // Get predicted tag recovery (Baranov's Equation)
                   temp_numbers_at_age_m = tagged_natage_m.col(tag_release_event_ndx).col(region_ndx).vec() *
-                  F_fixed_m.col(year_ndx).col(region_ndx).vec() / Z_m.col(year_ndx).col(region_ndx).vec() *
-                  (1.0 - S_m.col(year_ndx).col(region_ndx).vec()); // males
-
+                    F_fixed_m.col(year_ndx).col(region_ndx).vec() / Z_m.col(year_ndx).col(region_ndx).vec() *
+                    (1.0 - S_m.col(year_ndx).col(region_ndx).vec()); // males
+                  
                   temp_numbers_at_age_f = tagged_natage_f.col(tag_release_event_ndx).col(region_ndx).vec() *
-                  F_fixed_f.col(year_ndx).col(region_ndx).vec() / Z_f.col(year_ndx).col(region_ndx).vec() *
-                  (1.0 - S_f.col(year_ndx).col(region_ndx).vec()); // females
+                    F_fixed_f.col(year_ndx).col(region_ndx).vec() / Z_f.col(year_ndx).col(region_ndx).vec() *
+                    (1.0 - S_f.col(year_ndx).col(region_ndx).vec()); // females
                   
                   tmp_tag_pred_naa = temp_numbers_at_age_m + temp_numbers_at_age_f; // add sexes together predicted recaptures
-
+                  
                   // numbers_at_age_and_sex.segment(0,n_ages) = temp_numbers_at_age_m;
                   // numbers_at_age_and_sex.segment(n_ages,n_ages) = temp_numbers_at_age_f;
-
+                  
                   // apply reporting rate
                   tmp_tag_pred_naa = tmp_tag_pred_naa * tag_reporting_rate(region_ndx, tag_recovery_counter);
+                  temp_numbers_at_age_f *= tag_reporting_rate(region_ndx, tag_recovery_counter);
+                  temp_numbers_at_age_m *= tag_reporting_rate(region_ndx, tag_recovery_counter);
+                  
+                  if(sex_based_movement == 1) {
+                    // loop through to constrain to not be negative, and to do some residual munging
+                    // Females
+                    predicted_tags = temp_numbers_at_age_f.sum(); // get predicted total tag recapture
+                    predicted_tags = posfun(predicted_tags, eps_for_posfun, pen_posfun); // apply pos fun function to constrain
+                    pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter) = predicted_tags;
+                    
+                    // Males
+                    predicted_tags = temp_numbers_at_age_m.sum(); // get predicted total tag recapture
+                    predicted_tags = posfun(predicted_tags, eps_for_posfun, pen_posfun); // apply pos fun function to constrain
+                    pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter) = predicted_tags;
+                    
+                    // Tag likelihood contribution
+                    if(evaluate_tag_likelihood == 1) {
+                      // poisson tag likelihood
+                      if(tag_likelihood == 0) {
+                        nll(7) -= dpois(obs_tag_recovery(0, tag_release_event_ndx, region_ndx, tag_recovery_counter), 
+                                  pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter), true); // females
+                        nll(7) -= dpois(obs_tag_recovery(1, tag_release_event_ndx, region_ndx, tag_recovery_counter), 
+                                  pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter), true); // males
+                        
+                        SIMULATE {
+                          // store the simulated tag-observation in the first age-sex bin of obs_tag_recovery
+                          obs_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter) = rpois(pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter)); // females
+                          obs_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter) = rpois(pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter)); // males
+                        } // simulate block
+                      } else
+                        // Negative binomial tag likelihood
+                        if(tag_likelihood == 1) {
+                          // females
+                          s1 = log(pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter));                          // log(mu)
+                          s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
+                          nll(7) -= dnbinom_robust(obs_tag_recovery(0, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true); // females
+                          
+                          // males
+                          s1 = log(pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter));                          // log(mu)
+                          s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
+                          nll(7) -= dnbinom_robust(obs_tag_recovery(1, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true); // males
+                          
+                          SIMULATE{
+                            // females 
+                            s1 = pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter);
+                            s2 = pred_tag_recovery(0,tag_release_event_ndx, region_ndx, tag_recovery_counter) * (1.0 + tag_phi);  // (1+phi) guarantees that var >= mu
+                            obs_tag_recovery(0, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rnbinom2(s1, s2);
+                            
+                            // males 
+                            s1 = pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter);
+                            s2 = pred_tag_recovery(1,tag_release_event_ndx, region_ndx, tag_recovery_counter) * (1.0 + tag_phi);  // (1+phi) guarantees that var >= mu
+                            obs_tag_recovery(1, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rnbinom2(s1, s2);
+                            
+                          } // simulate block
+                        } // if negative binomial
+                    } // if evaluate tag likelihood
+                    
+                  } // end sex based movement
                   
                   if(age_based_movement == 0) { // no age-based movement
                     predicted_tags = tmp_tag_pred_naa.sum(); // get predicted total tag recapture
@@ -1106,7 +1153,7 @@ Type objective_function<Type>::operator() ()
                         SIMULATE {
                           // store the simulated tag-observation in the first age-sex bin of obs_tag_recovery
                           obs_tag_recovery(tag_release_event_ndx, region_ndx, tag_recovery_counter) = rpois(predicted_tags);
-                        }
+                        } // simulate block
                       } else
                         // Negative binomial tag likelihood
                         if(tag_likelihood == 1) {
@@ -1117,14 +1164,14 @@ Type objective_function<Type>::operator() ()
                             s1 = predicted_tags;
                             s2 = predicted_tags * (1.0 + tag_phi);  // (1+phi) guarantees that var >= mu
                             obs_tag_recovery(tag_release_event_ndx, region_ndx, tag_recovery_counter) = rnbinom2(s1, s2);
-                          }
+                          } // simulate block
                         } // if negative binomial
                     } // if evaluate tag likelihood
                   } // end if no age based movement
                   
                   if(age_based_movement == 1) { // if we are doing age-based movement
                     
-                    // Create temporary variables
+                    // Create temporary variables to loop through and accumulate values
                     vector<Type> tmp_obs(n_movement_age_blocks);
                     vector<Type> tmp_pred(n_movement_age_blocks);
                     
@@ -1137,45 +1184,60 @@ Type objective_function<Type>::operator() ()
                       tmp_obs(ageblk_ndx) += obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter); // accumulate into temporary variables
                       tmp_pred(ageblk_ndx) += pred_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter); // accumulate into temporary variables
                     } // end age_ndx
-
-                      // Tag likelihood contribution
-                      if(evaluate_tag_likelihood == 1) {
-                        // poisson tag likelihood
-                        if(tag_likelihood == 0) {
-                          // Loop through each age block
-                          for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++)  nll(7) -= dpois(tmp_obs(ageblk_ndx), tmp_pred(ageblk_ndx), true);
-                          // nll(7) -= dpois(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), predicted_tags, true);
-                          // SIMULATE {
-                          //   // store the simulated tag-observation in the first age-sex bin of obs_tag_recovery
-                          //   obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rpois(predicted_tags);
-                          // }
-                        } else
-                          // Negative binomial tag likelihood
-                          if(tag_likelihood == 1) {
-                            // s1 = log(predicted_tags);                          // log(mu)
-                            // s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
-                            
-                            for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) {
-                              s1 = tmp_pred(ageblk_ndx);                         // log(mu)
-                              s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
-                              nll(7) -= dnbinom_robust(tmp_obs(ageblk_ndx), s1, s2, true);
-                            } // end age_ndx
-                            
-                            // nll(7) -= dnbinom_robust(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true);
-                            // SIMULATE{
-                            //   s1 = predicted_tags;
-                            //   s2 = predicted_tags * (1.0 + tag_phi);  // (1+phi) guarantees that var >= mu
-                            //   obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rnbinom2(s1, s2);
-                            // }
-                          } // if negative binomial
-                      } // if evaluate tag likelihood
-
                     
+                    // Tag likelihood contribution
+                    if(evaluate_tag_likelihood == 1) {
+                      // poisson tag likelihood
+                      if(tag_likelihood == 0) {
+                        
+                        // Loop through each age block to get nLL
+                        for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) { // lump as age blocks
+                          nll(7) -= dpois(tmp_obs(ageblk_ndx), tmp_pred(ageblk_ndx), true);
+                        } // end age_ndx
+                        
+                        // fit each age individually
+                        // for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) { 
+                        //   nll(7) -= dpois(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), 
+                        //             pred_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), true);
+                        // } // end age_ndx
+                        
+                        // nll(7) -= dpois(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), predicted_tags, true);
+                        // SIMULATE {
+                        //   // store the simulated tag-observation in the first age-sex bin of obs_tag_recovery
+                        //   obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rpois(predicted_tags);
+                        // }
+                        
+                      } else
+                        // Negative binomial tag likelihood
+                        if(tag_likelihood == 1) {
+
+                          // Loop through each age block to get nLL
+                          for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) { // do it by age blocks
+                            s1 = log(tmp_pred(ageblk_ndx));                         // log(mu)
+                            s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
+                            nll(7) -= dnbinom_robust(tmp_obs(ageblk_ndx), s1, s2, true);
+                          } // end age_ndx
+                          
+                          // fit each age individually
+                          // for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) { 
+                          //   s1 = log(pred_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter));                         // log(mu)
+                          //   s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
+                          //   nll(7) -= dnbinom_robust(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true);
+                          // } // end age_ndx
+                          
+                          // nll(7) -= dnbinom_robust(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true);
+                          // SIMULATE{
+                          //   s1 = predicted_tags;
+                          //   s2 = predicted_tags * (1.0 + tag_phi);  // (1+phi) guarantees that var >= mu
+                          //   obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter) = rnbinom2(s1, s2);
+                          // }
+                          
+                        } // if negative binomial
+                    } // if evaluate tag likelihood
                   } // end if age based movement
-                  
-                }
-              }
-            }
+                } // end if we have tag recoveries
+              } // end release_region_ndx
+            } // end tag_ndx
           } // if we have tagging data
         } // and if else for multinomial vs poisson and negative binomial
 
@@ -1254,12 +1316,12 @@ Type objective_function<Type>::operator() ()
                 // males
                 tagged_natage_m.col(tag_release_event_ndx).col(to_ndx).col(age_ndx) =
                 tagged_natage_m.col(tag_release_event_ndx).rotate(1).col(age_ndx).matrix().transpose() *
-                fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
+                fixed_movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
                 
                 // females
                 tagged_natage_f.col(tag_release_event_ndx).col(to_ndx).col(age_ndx) =
                 tagged_natage_f.col(tag_release_event_ndx).rotate(1).col(age_ndx).matrix().transpose() *
-                fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
+                fixed_movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
               } // end to ndx
             } // end age ndx
             // tagged_natage_m.col(tag_release_event_ndx) = (tagged_natage_m.col(tag_release_event_ndx).matrix() * fixed_movement_matrix.col(movement_time_block_indicator(year_ndx)).matrix()).array();
@@ -1273,12 +1335,12 @@ Type objective_function<Type>::operator() ()
                 // males
                 tagged_natage_m.col(tag_release_event_ndx).col(to_ndx).col(age_ndx) =
                 tagged_natage_m.col(tag_release_event_ndx).rotate(1).col(age_ndx).matrix().transpose() *
-                movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
+                movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
                 
                 // females
                 tagged_natage_f.col(tag_release_event_ndx).col(to_ndx).col(age_ndx) =
                 tagged_natage_f.col(tag_release_event_ndx).rotate(1).col(age_ndx).matrix().transpose() *
-                movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
+                movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix(); 
               } // end to ndx
             } // end age ndx
           } // end else
@@ -1298,11 +1360,11 @@ Type objective_function<Type>::operator() ()
           // Move abundance around
           natage_m.col(year_ndx + 1).col(to_ndx).col(age_ndx) = 
           natage_m.col(year_ndx + 1).rotate(1).col(age_ndx).matrix().transpose() *
-          fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
+          fixed_movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
 
           natage_f.col(year_ndx + 1).col(to_ndx).col(age_ndx) = 
           natage_f.col(year_ndx + 1).rotate(1).col(age_ndx).matrix().transpose() *
-          fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
+          fixed_movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
         } // end to_ndx
       } // end age_ndx
       // natage_m.col(year_ndx + 1) = (natage_m.col(year_ndx + 1).matrix() * fixed_movement_matrix.col(movement_time_block_indicator(year_ndx)).matrix()).array();
@@ -1315,11 +1377,11 @@ Type objective_function<Type>::operator() ()
           // Move abundance around
           natage_m.col(year_ndx + 1).col(to_ndx).col(age_ndx) = 
           natage_m.col(year_ndx + 1).rotate(1).col(age_ndx).matrix().transpose() *
-          movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
+          movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
         
           natage_f.col(year_ndx + 1).col(to_ndx).col(age_ndx) = 
           natage_f.col(year_ndx + 1).rotate(1).col(age_ndx).matrix().transpose() *
-          movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
+          movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
         } // end to_ndx
       } // end age_ndx
       // natage_m.col(year_ndx + 1) = (natage_m.col(year_ndx + 1).matrix() * movement_matrix.col(movement_time_block_indicator(year_ndx)).matrix()).array();
@@ -1834,11 +1896,11 @@ Type objective_function<Type>::operator() ()
             // Move abundance around
             natage_m.col(proj_year_ndx + 1).col(to_ndx).col(age_ndx) = 
             natage_m.col(n_years - 1).rotate(1).col(age_ndx).matrix().transpose() *
-            fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
+            fixed_movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
             
             natage_f.col(proj_year_ndx + 1).col(to_ndx).col(age_ndx) = 
             natage_f.col(n_years - 1).rotate(1).col(age_ndx).matrix().transpose() *
-            fixed_movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
+            fixed_movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
           } // end to_ndx
         } // end age_ndx
         // natage_m.col(proj_year_ndx + 1) = (natage_m.col(proj_year_ndx + 1).matrix() * fixed_movement_matrix.col(movement_time_block_indicator(n_years - 1)).matrix()).array();
@@ -1851,11 +1913,11 @@ Type objective_function<Type>::operator() ()
             // Move abundance around
             natage_m.col(proj_year_ndx + 1).col(to_ndx).col(age_ndx) = 
             natage_m.col(n_years - 1).rotate(1).col(age_ndx).matrix().transpose() *
-            movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
+            movement_matrix.col(1).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // males
             
             natage_f.col(proj_year_ndx + 1).col(to_ndx).col(age_ndx) = 
             natage_f.col(n_years - 1).rotate(1).col(age_ndx).matrix().transpose() *
-            movement_matrix.col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
+            movement_matrix.col(0).col(ageblk_ndx).col(timeblk_ndx).col(to_ndx).matrix();  // females
           } // end to_ndx
         } // end age_ndx
         // natage_m.col(proj_year_ndx + 1) = (natage_m.col(proj_year_ndx + 1).matrix() * movement_matrix.col(movement_time_block_indicator(n_years - 1)).matrix()).array();
@@ -2034,6 +2096,6 @@ Type objective_function<Type>::operator() ()
   // REMOVE objects after this comment.
   // I created them for reporting interim calculations debugging etc
 
-  return nll.sum() + move_nLL;
+  return nll.sum();
 }
 

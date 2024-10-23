@@ -1,5 +1,3 @@
-
-
 #' Title
 #'
 #' @param sablefish_control_filename Input file path for sablefish .ctl file
@@ -180,3 +178,69 @@ digest_sab_input = function(sablefish_input_filename) {
 indicator_fun = function(x) {
   ifelse(is.na(sum(x)), 0, 1)
 }
+
+
+# Plot observations
+plot_obs = function (data, region_key = NULL, survey_labels = NULL) 
+{
+  levels = region_key$area
+  full_df = get_input_observations(data, region_key, survey_labels) 
+  
+  gplt = NULL
+  if (data$model == "Assessment") {
+    full_df$temp_label = paste0(full_df$source, "-", full_df$obs_type)
+    gplt = ggplot(full_df) + geom_point(aes(x = Year, y = temp_label, 
+      col = temp_label, size = indicator)) + guides(colour = "none", 
+      size = "none") + labs(y = "") + facet_wrap(~type, 
+      ncol = 1) + theme_bw() + theme(axis.text = element_text(size = 14), 
+      axis.title = element_text(size = 14))
+  }
+  else {
+    gplt = ggplot(full_df %>% mutate(Region = factor(Region, levels = levels))) + 
+      geom_point(aes(x = Year, 
+                     y = forcats::fct_reorder(label, as.integer(type)), 
+                     col = label, size = indicator)) + 
+      guides(colour = "none", size = "none") + labs(y = "") + 
+      facet_wrap(~Region, ncol = 1) + theme_bw(base_size = 23)
+  }
+  return(gplt)
+}
+
+#' Title Get OSA residuals
+#'
+#' @param obs observed matrix (n_years, n_bins)
+#' @param pred predicted matrix (n_years, n_bins)
+#' @param iss Input sample size
+#' @param iter_wt Iterative weights (if any)
+#' @param index Index (age bins or length bins)
+#' @param drop_bin Which age or length bin to drop
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_osa_res = function(obs, pred, iss, iter_wt, index, drop_bin) {
+  require(compResidual)
+  # Do some munging
+  years = rownames(pred) # get years
+  ess_wt = round(iss * iter_wt, 0) # get ess
+  obs1 = round((obs + 0.001) * (ess_wt)) # calculate observations in numbers
+  pred = pred + 0.001 # add constant so we can divide finite
+  # determine which bin to drop (software drops last bin automatically)
+  obs1 <- cbind(obs1[,-drop_bin], obs1[,drop_bin])
+  pred1 <- cbind(pred[,-drop_bin], pred[,drop_bin])
+  
+  # Get OSA here
+  osa_res <- NULL
+  while (is.null(osa_res) || !is.finite(sum(osa_res))) {
+    osa_res <- resMulti(t(obs1), t(pred1)) 
+  } # caluclate residual until it does not return Nans
+  
+  mat <- t(matrix(osa_res, nrow=nrow(osa_res), ncol=ncol(osa_res))) # munge into matrix
+  rownames(mat) = years # input names
+  colnames(mat) = index[-drop_bin] # input labels
+  reslong <- reshape2::melt(mat, value.name='resid') %>%  # reshape
+    rename(Year = Var1, Sex_Age = Var2)
+  return(reslong)
+}
+

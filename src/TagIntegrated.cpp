@@ -1128,9 +1128,15 @@ Type objective_function<Type>::operator() ()
                       if(tag_likelihood == 0) {
                         
                         // Loop through each age block to get nLL
-                        for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) {
+                        for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) { // lump as age blocks
                           nll(7) -= dpois(tmp_obs(ageblk_ndx), tmp_pred(ageblk_ndx), true);
                         } // end age_ndx
+                        
+                        // fit each age individually
+                        // for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) { 
+                        //   nll(7) -= dpois(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), 
+                        //             pred_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), true);
+                        // } // end age_ndx
                         
                         // nll(7) -= dpois(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), predicted_tags, true);
                         // SIMULATE {
@@ -1141,16 +1147,20 @@ Type objective_function<Type>::operator() ()
                       } else
                         // Negative binomial tag likelihood
                         if(tag_likelihood == 1) {
-                          
-                          // s1 = log(predicted_tags);                          // log(mu)
-                          // s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
-                          
+
                           // Loop through each age block to get nLL
-                          for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) {
-                            s1 = tmp_pred(ageblk_ndx);                         // log(mu)
+                          for(int ageblk_ndx = 0; ageblk_ndx < n_movement_age_blocks; ageblk_ndx++) { // do it by age blocks
+                            s1 = log(tmp_pred(ageblk_ndx));                         // log(mu)
                             s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
                             nll(7) -= dnbinom_robust(tmp_obs(ageblk_ndx), s1, s2, true);
                           } // end age_ndx
+                          
+                          // fit each age individually
+                          // for(int age_ndx = 0; age_ndx < n_ages; age_ndx++) { 
+                          //   s1 = log(pred_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter));                         // log(mu)
+                          //   s2 = 2. * s1 - ln_tag_phi;                         // log(var - mu)
+                          //   nll(7) -= dnbinom_robust(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true);
+                          // } // end age_ndx
                           
                           // nll(7) -= dnbinom_robust(obs_tag_recovery(age_ndx, tag_release_event_ndx, region_ndx, tag_recovery_counter), s1, s2, true);
                           // SIMULATE{

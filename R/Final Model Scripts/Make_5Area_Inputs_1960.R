@@ -39,7 +39,11 @@ design_survey_index = design_survey_index %>% mutate(area_lab =
                                                                  area_lab == "Central Gulf of Alaska" ~ "CGOA",
                                                                  area_lab == "Eastern Gulf of Alaska" ~ "EGOA",
                                                                  TRUE ~ area_lab))
-design_survey_index = design_survey_index %>% group_by(Country, Year, area_lab) %>% summarise(sum_estimates = sum(area_RPN, na.rm = T), sum_var = sum(var_area_RPN, na.rm = T), se = log_sigma(sqrt(sum_var)/sum_estimates), LCI = lognormal_CI(sum_estimates, se, 0.95)$lower, UCI = lognormal_CI(sum_estimates, se, 0.95)$upper)
+
+design_survey_index = design_survey_index %>% group_by(Country, Year, area_lab) %>% 
+  summarise(sum_estimates = sum(area_RPN, na.rm = T), sum_var = sum(var_area_RPN, na.rm = T),
+            se = log_sigma(sqrt(sum_var)/sum_estimates), LCI = lognormal_CI(sum_estimates, se, 0.95)$lower,
+            UCI = lognormal_CI(sum_estimates, se, 0.95)$upper)
 
 ### Composition Data --------------------------------------------------------
 AF_direct_ageing = T # Whether direct ageing is used
@@ -200,9 +204,9 @@ trawl_gear_with_imputation$region_f = factor(trawl_gear_with_imputation$area, le
 trwl_catch = trawl_gear_with_imputation %>% filter(year < 1977) %>% arrange(region_f) %>% ungroup() %>% dplyr::select(imputed_catch, year_f, region_f) %>% pivot_wider(names_from = year_f, values_from = imputed_catch)
 fixed_catch = fixed_gear_with_imputation  %>% filter(year < 1977)  %>% arrange(region_f)  %>% ungroup() %>% dplyr::select(imputed_catch, year_f, region_f) %>% pivot_wider(names_from = year_f, values_from = imputed_catch)
 trwl_catch_temp = fixed_catch_temp = matrix(0, nrow = data$n_regions, ncol = n_projyears)
-trwl_catch_temp[,1:yrs_to_add] = as.matrix(trwl_catch %>% select(!region_f))
+trwl_catch_temp[,1:yrs_to_add] = as.matrix(trwl_catch %>% dplyr::select(!region_f))
 trwl_catch_temp[,(yrs_to_add+1):n_projyears] = as.matrix(trwl_catch_real[,(yrs_to_add+1):n_projyears])
-fixed_catch_temp[,1:yrs_to_add] = as.matrix(fixed_catch %>% select(!region_f))
+fixed_catch_temp[,1:yrs_to_add] = as.matrix(fixed_catch %>% dplyr::select(!region_f))
 fixed_catch_temp[,(yrs_to_add+1):n_projyears] = as.matrix(fixed_catch_real[,(yrs_to_add+1):n_projyears])
 trwl_catch_temp[trwl_catch_temp == 0] = 0.001
 fixed_catch_temp[fixed_catch_temp == 0] = 0.001
@@ -225,12 +229,12 @@ data$srv_sel_type = matrix(0, nrow = 1, ncol = data$n_surveys) # logistic
 data$srv_sel_by_year_indicator = matrix(0, nrow = n_projyears, ncol = data$n_surveys) # blocks for survey
 
 ### Tagging -----------------------------------------------------------------
-# Tag releases from 1979 - 2016
 tag_release_years = c(1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 
                       1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 1998, 
                       1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 
                       2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
                       2020, 2021)
+
 data$tag_release_event_this_year = rep(0, n_years) # initialize vector
 data$tag_release_event_this_year[data$years %in% tag_release_years] = 1 # do tag releases in the years specified above
 data$male_tagged_cohorts_by_age = array(0, dim = c(n_ages, n_regions, length(tag_release_years)))
@@ -274,7 +278,7 @@ if(include_tag_recoveries) {
       ## tags must be at liberty for at least one year
       this_recovery_year_region = this_recovery_year %>% filter(release_year <= tag_recovery_years[y_ndx] - 1,release_year %in% tag_release_years, recovery_region == recovery_regions[r_ndx])
       # now find how many 'release-event' tags we recovered during this recovery year and region.- which is release year x release region specific blahh!!!
-      for(release_event_ndx in 3:(data$n_years_to_retain_tagged_cohorts_for)) { # index starts at two because 1 indicates they were released this year and we don't consider recoveries until after a year at liberty
+      for(release_event_ndx in 2:(data$n_years_to_retain_tagged_cohorts_for)) { # index starts at two because 1 indicates they were released this year and we don't consider recoveries until after a year at liberty
         this_release_year = tag_recovery_years[y_ndx] - (release_event_ndx - 1)
         if(!this_release_year %in% tag_release_years)
           next; # there can be early release events in the data that are not in the model which can cause an NaN via 0 expected values in the likelihood calculations

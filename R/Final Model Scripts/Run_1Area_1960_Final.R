@@ -56,10 +56,6 @@ est_catch_sd = F # fixed catch sd
 est_movement = F # fixed movement
 est_prop_male_recruit = "off" # fixed sex-ratio
 
-# Fixed Gear Fishery Selectivity
-data$fixed_sel_type = as.vector(rep(0, 1), mode = "integer") # logistic selectivity for males and females
-data$fixed_sel_by_year_indicator = as.vector(rep(0, length(data$years)), mode = "integer")
-parameters$ln_fixed_sel_pars = array(0, dim = c(length(unique(data$fixed_sel_by_year_indicator)), 2, 2))
 
 # Map parameters off
 map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
@@ -79,12 +75,14 @@ map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
                                    est_prop_male_recruit = est_prop_male_recruit)
 
 # Share deltas by fishery (estimate sex-specific but share across blocks)
-ln_fixed_sel_pars = factor(c(1,2,3,2))
+ln_fixed_sel_pars = factor(c(1,2,3,3,4,5,3,3))
 # Share deltas by survey (estimate sex-specific but share across fleets)
 ln_srv_sel_pars = factor(c(1,2,3,4,5,2,6,4))
 map_fixed_pars$ln_fixed_sel_pars = ln_fixed_sel_pars
 map_fixed_pars$ln_srv_sel_pars = ln_srv_sel_pars
+parameters$ln_fixed_sel_pars[] = log(1) # get it stuck out of local minima
 parameters$ln_trwl_sel_pars[] = log(5) # get it stuck out of local minima
+parameters$trans_srv_q[] = log(7e3)
 
 if(multiple_shoot == TRUE) {
   for(i in 1:shoot_iter) {
@@ -157,3 +155,135 @@ saveRDS(mle_spatial, file.path(model_path, "mle_optim.RDS"))
 saveRDS(map_fixed_pars, file.path(model_path, "map_fixed_pars.RDS"))
 mle_param_list = mle_obj$env$parList(par = mle_obj$env$last.par.best)
 saveRDS(mle_param_list, file.path(model_path, "mle_par_list.RDS"))
+
+### Include Tagging data --------------------------------------------------------------------
+# Parameterization
+# Start year 1960
+# 1 region, 2 fishery fleets, and 3 survey fleets
+# Mean recruitment
+# Estimate all recruitment deviations except for the last year (does not sum to zero)
+# Time block for fixed gear fleet selectivity from 1960 - 2015, 2016 - terminal (logistic)
+# Time invariant trawl fishery selectivity (gamma)
+# Selectivity for fixed gear deltas and trawl are shared across sexes
+# No tag data used
+# Movement is fixed at identity
+
+# Set up path for outputting model
+model_path = here("Output", "Final Models", "1-Area-1960", "1-Area-1960-Final-Tagging")
+dir.create(model_path)
+
+srv_sel_first_param_shared_by_sex = F 
+srv_sel_second_param_shared_by_sex = T
+fixed_sel_first_param_shared_by_sex  = F
+fixed_sel_second_param_shared_by_sex   = T
+trwl_sel_first_param_shared_by_sex  = F
+trwl_sel_second_param_shared_by_sex  = T
+recruit_dev_years_not_to_estimate = 2020:2021 # don't estimate rec devs for last 2 years
+srv_q_spatial = F # no spatial q
+est_init_F = F # estimate initial F
+tag_reporting_rate = c(1978, 1995, 2017) # no tag reporting
+est_catch_sd = F # fixed catch sd
+est_movement = F # fixed movement
+est_prop_male_recruit = "off" # fixed sex-ratio
+data$tag_likelihood = 1 # negative binomial likelihood
+data$evaluate_tag_likelihood = 1 # evaluate likelihood
+
+# Map parameters off
+map_fixed_pars = set_up_parameters(data = data, parameters = parameters,
+                                   na_map = NULL,
+                                   srv_sel_first_param_shared_by_sex = srv_sel_first_param_shared_by_sex,
+                                   srv_sel_second_param_shared_by_sex = srv_sel_second_param_shared_by_sex,
+                                   fixed_sel_first_shared_by_sex  = fixed_sel_first_param_shared_by_sex,
+                                   fixed_sel_second_shared_by_sex   = fixed_sel_second_param_shared_by_sex,
+                                   trwl_sel_first_shared_by_sex  = trwl_sel_first_param_shared_by_sex,
+                                   trwl_sel_second_shared_by_sex  = trwl_sel_second_param_shared_by_sex,
+                                   recruit_dev_years_not_to_estimate = recruit_dev_years_not_to_estimate,
+                                   srv_q_spatial = srv_q_spatial,
+                                   tag_reporting_rate = tag_reporting_rate,
+                                   est_init_F = est_init_F,
+                                   est_catch_sd = est_catch_sd,
+                                   est_movement = est_movement,
+                                   est_prop_male_recruit = est_prop_male_recruit)
+
+# Share deltas by fishery (estimate sex-specific but share across blocks)
+ln_fixed_sel_pars = factor(c(1,2,3,3,4,5,3,3))
+# Share deltas by survey (estimate sex-specific but share across fleets)
+ln_srv_sel_pars = factor(c(1,2,3,4,5,2,6,4))
+map_fixed_pars$ln_fixed_sel_pars = ln_fixed_sel_pars
+map_fixed_pars$ln_srv_sel_pars = ln_srv_sel_pars
+parameters$ln_fixed_sel_pars[] = log(1) # get it stuck out of local minima
+parameters$ln_trwl_sel_pars[] = log(5) # get it stuck out of local minima
+parameters$trans_srv_q[] = log(7e3)
+
+if(multiple_shoot == TRUE) {
+  for(i in 1:shoot_iter) {
+    if(i > 1) {
+      parameters$trans_rec_dev[] = mle_report$recruitment_devs
+      parameters$ln_init_rec_dev[] = log(mle_report$init_rec_dev)
+      parameters$ln_tag_phi = log(mle_report$tag_phi)
+      parameters$ln_trwl_sel_pars[] = log(mle_report$trwl_sel_pars)
+      parameters$ln_srv_sel_pars[] = log(mle_report$srv_sel_pars)
+      parameters$ln_fixed_sel_pars[] = log(mle_report$fixed_sel_pars)
+      parameters$trans_srv_q[] = log(mle_report$srv_q)
+      parameters$logistic_tag_reporting_rate[] = logit(mle_report$tag_reporting_rate)
+    } 
+    
+    mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+    pre_optim_sanity_checks(mle_obj)
+    
+    mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, 
+                         gradient  = mle_obj$gr, 
+                         control = list(iter.max = 1e5, eval.max = 1e5, rel.tol = 1e-15))
+    mle_spatial$convergence # check convergence, 0 = converged
+    
+    # Run more newton steps
+    try_improve = tryCatch(expr =
+                             for(i in 1:3) {
+                               g = as.numeric(mle_obj$gr(mle_spatial$par))
+                               h = optimHess(mle_spatial$par, fn = mle_obj$fn, gr = mle_obj$gr)
+                               mle_spatial$par = mle_spatial$par - solve(h,g)
+                               mle_spatial$objective = mle_obj$fn(mle_spatial$par)
+                             }, error = function(e){e})
+    
+    # check post optimization
+    post_optim_sanity_checks(mle_obj = mle_obj, mle_pars = mle_obj$env$last.par.best)
+    mle_report = mle_obj$report(mle_obj$env$last.par.best) # get report
+    if(max(abs(mle_obj$gr(mle_obj$env$last.par.best))) < 0.001) break 
+    
+  } # end i
+} else {
+  
+  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  pre_optim_sanity_checks(mle_obj)
+  
+  mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn, gradient  = mle_obj$gr, 
+                       control = list(iter.max = 1e5, eval.max = 1e5, rel.tol = 1e-15))
+  mle_spatial$convergence # check convergence, 0 = converged
+  
+  # Run more newton steps
+  try_improve = tryCatch(expr =
+                           for(i in 1:3) {
+                             g = as.numeric(mle_obj$gr(mle_spatial$par))
+                             h = optimHess(mle_spatial$par, fn = mle_obj$fn, gr = mle_obj$gr)
+                             mle_spatial$par = mle_spatial$par - solve(h,g)
+                             mle_spatial$objective = mle_obj$fn(mle_spatial$par)
+                           }, error = function(e){e})
+  
+  # check post optimization
+  post_optim_sanity_checks(mle_obj = mle_obj, mle_pars = mle_spatial$par)
+  mle_report = mle_obj$report(mle_obj$env$last.par.best) # get report
+  
+}
+
+sd_report = sdreport(mle_obj)
+
+# Save stuff
+saveRDS(data, file.path(model_path, "data.RDS"))
+saveRDS(parameters, file.path(model_path, "parameters.RDS"))
+saveRDS(mle_report, file.path(model_path, "mle_report.RDS"))
+saveRDS(sd_report, file.path(model_path, "sd_report.RDS"))
+saveRDS(mle_spatial, file.path(model_path, "mle_optim.RDS"))
+saveRDS(map_fixed_pars, file.path(model_path, "map_fixed_pars.RDS"))
+mle_param_list = mle_obj$env$parList(par = mle_obj$env$last.par.best)
+saveRDS(mle_param_list, file.path(model_path, "mle_par_list.RDS"))
+
