@@ -1,3 +1,3 @@
-# Spatial_Sablefish_Paper
+# Spatial Sablefish Model Development
  
-Unzip Data.zip to get all data necessary to run models
+Email lhcheng@alaska.edu to get all data.zip ...
