@@ -1276,9 +1276,12 @@ recovery_df$years_at_liberty = factor(recovery_df$years_at_liberty, levels = pas
 
 ##### Plot --------------------------------------------------------------------
 dist = ggplot() + 
-  geom_col(data = recovery_df %>% st_drop_geometry() %>% group_by(release_year, years_at_liberty, years_at_liberty_num) %>% summarise(recoveries = n()) %>% 
-             group_by(years_at_liberty) %>% mutate(recoveries = recoveries / max(recoveries)), 
-           aes(x = release_year, y = recoveries), alpha = 0.55, color = 'black') + # relative number of recoveries for a gien year at liberty
+  geom_col(data = recovery_df %>% st_drop_geometry() %>%
+             group_by(release_year, years_at_liberty) %>%
+             summarise(recoveries = n()) %>%
+             group_by(years_at_liberty) %>%
+             mutate(recoveries = recoveries / max(recoveries)),
+           aes(x = release_year, y = recoveries), alpha = 0.55, color = 'black') + # relative number of recoveries for a given year at liberty
   labs(y = "Distribution of Relative Number of Recoveries", x = "Release Year", col = "", fill = "") +
   facet_wrap(~years_at_liberty, ncol = 2) +
   scale_x_discrete(breaks = every_nth(n = 6)) +
@@ -1294,7 +1297,7 @@ dist_ecdf = ggplot(data = recovery_df %>% st_drop_geometry() %>% group_by(releas
        aes(x = recoveries, color = years_at_liberty)) +
   stat_ecdf(lwd = 1.3, alpha = 0.85) +
   scale_color_viridis_d(option = 'magma') +
-  labs(x = "Relative Number of Recoveries", y = 'Empirical Cumulative Distribution Function', col = "Years at Liberty", fill = "") +
+  labs(x = "Relative Number of Recoveries", y = 'Empirical Cumulative Distribution Function', col = "Time at Liberty (Years)", fill = "") +
   theme_bw(base_size = 13) +
   theme(legend.position = c(0.85, 0.25), 
         legend.title = element_text(size = 16),
@@ -1547,7 +1550,8 @@ srv_idx_area = ggplot(srv_area %>%
                           NPFMC.Sablefish.Management.Area == "Central Gulf of Alaska" ~ "CGOA",
                           NPFMC.Sablefish.Management.Area == "Eastern Gulf of Alaska" ~ "EGOA",
                         ),
-                        Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA'))),
+                        Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA'))) %>% 
+                        filter(Year <= 2021),
                       aes(x = Year, y = area_RPN, color = Country, fill = Country, ymin = LCI, ymax = UCI)) +
   geom_line(lty = 2) +
   geom_point(size = 3) +

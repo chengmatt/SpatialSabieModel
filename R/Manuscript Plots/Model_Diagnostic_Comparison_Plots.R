@@ -493,9 +493,9 @@ tag_rec = cbind(obs_tag_rec, Pred = pred_tag_rec$Pred) %>%
     ), Region = factor(Region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")))  
 
 # Tag Recovery from 5-Area Model
-ggplot(tag_rec %>% group_by(Year, Region) %>% summarize(Obs = sum(Obs), Pred = sum(Pred))) +
+area_5_tagrec_plot = ggplot(tag_rec %>% group_by(Year, Region) %>% summarize(Obs = sum(Obs), Pred = sum(Pred))) +
   geom_point(mapping = aes(x = Year + 1978, y = Obs), size = 2) +
-  geom_line(mapping = aes(x = Year + 1978, y = Pred), lwd = 1, alpha = 0.5) +
+  geom_line(mapping = aes(x = Year + 1978, y = Pred), lwd = 1, alpha = 0.8) +
   facet_wrap(~Region, nrow = 1) +
   theme_bw(base_size = 15) +
   theme(legend.position = c(0.9,0.9),
@@ -503,13 +503,19 @@ ggplot(tag_rec %>% group_by(Year, Region) %>% summarize(Obs = sum(Obs), Pred = s
         plot.background = element_rect(fill = "transparent", colour = NA)) +
   labs(x = 'Year', y = 'Tag Recoveries', color = 'Model', fill = 'Model') 
 
+ggsave(
+  area_5_tagrec_plot,
+  filename = here("figs", "Manuscript_Plots", "TagRecFits_Comp5area.png"),
+  width = 15, height = 8
+)
+
 # Tag Recovery Comparison w/ 1-Area Tag Model
 tag_area_comparison = rbind(
   tag_rec %>% group_by(Year) %>% summarize(Obs = sum(Obs), Pred = sum(Pred)) %>% mutate(model = '5-Area'),
   tag_rec_1area
 )
 
-# Tag Recovery from 1-Area Model
+# Tag Recovery from 1-Area Model comparison
 tag_rec_comp_plot = ggplot() +
   geom_point(tag_area_comparison %>% filter(model == '5-Area'), mapping = aes(x = Year + 1978, y = Obs), size = 2) +
   geom_line(tag_area_comparison, mapping = aes(x = Year + 1978, y = Pred, color = model, lty = model), lwd = 1, alpha = 1) +
@@ -1014,7 +1020,8 @@ for(i in 1:length(model_path)) {
   # get ssb
   ssb_tmp = model_sd[[i]]$value[names(model_sd[[i]]$value) == 'SSB_yr']
   ssb_se = model_sd[[i]]$sd[names(model_sd[[i]]$value) == 'SSB_yr']
-  ssb_tmp_df = data.frame(year = 1960:2021, value = ssb_tmp, se = ssb_se, model = model_name[i], type = 'Sp Bio (kt)',
+  ssb_tmp_df = data.frame(year = 1960:2021, value = ssb_tmp, se = ssb_se,
+                          cv = ssb_se / ssb_tmp, model = model_name[i], type = 'Sp Bio (kt)',
                           region = rep(c("BS","AI","WGOA","CGOA","EGOA"), each = length(1960:2021))) %>% 
     mutate(region = factor(region, levels = c("BS","AI","WGOA","CGOA","EGOA")))
   # combine
@@ -1113,13 +1120,91 @@ ggsave(
 ) 
 
 
+### Spawning Biomass Comparison (CV) -----------------------------------------------------
+# Plot SSB movement comparisons
+move_ssb = ggplot(ts_all_df %>% filter(!is.na(movement)), 
+                  aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  facet_grid(movement~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.95, 0.625),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = 'CV Sp Bio (kt)', color = '', fill = '', lty = '') 
+
+# Plot SSB tag likelihood comparisons
+taglike_ssb = ggplot(ts_all_df %>% filter(!is.na(taglike)), 
+                     aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3)]) +
+  scale_fill_manual(values = colors[-c(1,2,3)]) +
+  facet_grid(taglike~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.95, 0.625),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = 'CV Sp Bio (kt)', color = '', fill = '', lty = '') 
+
+# Plot SSB tag reporting rates 
+tagrep_ssb = ggplot(ts_all_df %>% filter(!is.na(tagrep)), 
+                    aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3,4)]) +
+  scale_fill_manual(values = colors[-c(1,2,3,4)]) +
+  facet_grid(tagrep~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.95, 0.625),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = 'CV Sp Bio (kt)', color = '', fill = '', lty = '') 
+
+# Plot SSB spatial Q
+sptq_ssb = ggplot(ts_all_df %>% filter(!is.na(sptq)), 
+                  aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3,4,5,6,8)]) +
+  scale_fill_manual(values = colors[-c(1,2,3,4,5,6,8)]) +
+  facet_grid(sptq~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.95, 0.625),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = 'CV Sp Bio (kt)', color = '', fill = '', lty = '') 
+
+ggsave(
+  plot_grid(move_ssb, taglike_ssb, tagrep_ssb, sptq_ssb, ncol = 1,
+            labels = c('A', 'B', 'C', 'D'),
+            label_size = 18),
+  filename = here("figs", "Manuscript_Plots", "SSB_CV_5Area_Comparison.png"),
+  width = 15, height = 10
+) 
+
 ### Recruitment Comparison --------------------------------------------------
 ts_all_df = data.frame()
 for(i in 1:length(model_path)) {
   # get ssb
   rec_tmp = model_sd[[i]]$value[names(model_sd[[i]]$value) == 'recruitment_yr']
   rec_se = model_sd[[i]]$sd[names(model_sd[[i]]$value) == 'recruitment_yr']
-  rec_tmp_df = data.frame(year = 1960:2021, value = rec_tmp, se = rec_se, model = model_name[i], type = 'Sp Bio (kt)',
+  rec_tmp_df = data.frame(year = 1960:2021, value = rec_tmp, se = rec_se, 
+                          model = model_name[i], type = 'Recrmt', cv = rec_se / rec_tmp, 
                           region = rep(c("BS","AI","WGOA","CGOA","EGOA"), each = length(1960:2021))) %>% 
     mutate(region = factor(region, levels = c("BS","AI","WGOA","CGOA","EGOA")))
   # combine
@@ -1210,6 +1295,85 @@ ggsave(
             labels = c('A', 'B', 'C', 'D'),
             label_size = 18),
   filename = here("figs", "Manuscript_Plots", "Rec_5Area_Comparison.png"),
+  width = 15, height = 10
+) 
+
+
+### Recruitment Comparison (CV) ---------------------------------------------
+# Plot rec movement comparisons
+move_rec = ggplot(ts_all_df %>% filter(!is.na(movement)), 
+                  aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  facet_grid(movement~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.135, 0.78),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = "CV Recrmt (millions)", color = '', fill = '', lty = '') 
+
+# Plot rec tag likelihood comparisons
+taglike_rec = ggplot(ts_all_df %>% filter(!is.na(taglike)), 
+                     aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3)]) +
+  scale_fill_manual(values = colors[-c(1,2,3)]) +
+  facet_grid(taglike~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.135, 0.78),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = "CV Recrmt (millions)", color = '', fill = '', lty = '') 
+
+# Plot rec tag reporting rates 
+tagrep_rec = ggplot(ts_all_df %>% filter(!is.na(tagrep)), 
+                    aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3,4)]) +
+  scale_fill_manual(values = colors[-c(1,2,3,4)]) +
+  facet_grid(tagrep~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.135, 0.78),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = "CV Recrmt (millions)", color = '', fill = '', lty = '') 
+
+# Plot rec spatial Q
+sptq_rec = ggplot(ts_all_df %>% filter(!is.na(sptq)), 
+                  aes(x = year, y = cv, color = model, fill = model, lty = model)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = colors[-c(1,2,3,4,5,6,8)]) +
+  scale_fill_manual(values = colors[-c(1,2,3,4,5,6,8)]) +
+  facet_grid(sptq~region) +
+  coord_cartesian(ylim = c(0,NA)) +
+  theme_bw(base_size = 15) +
+  theme(legend.position = c(0.135, 0.78),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'Year', y = "CV Recrmt (millions)", color = '', fill = '', lty = '') 
+
+
+ggsave(
+  plot_grid(move_rec, taglike_rec, tagrep_rec, sptq_rec, ncol = 1,
+            labels = c('A', 'B', 'C', 'D'),
+            label_size = 18, label_y = 1.035),
+  filename = here("figs", "Manuscript_Plots", "Rec_CV_5Area_Comparison.png"),
   width = 15, height = 10
 ) 
 
@@ -1322,6 +1486,90 @@ ggsave(
             label_size = 18),
   filename = here("figs", "Manuscript_Plots", "MeanFemaleAge_5Area_Comparison.png"),
   width = 15, height = 13
+) 
+
+### Movement  ---------------------------------------------------------------
+move_all_df = data.frame()
+for(i in 1:length(model_path)) {
+  # get movement information
+  move_tmp = reshape2::melt(model_list[[i]]$movement_matrix)
+  move_se = model_sd[[i]]$sd[names(model_sd[[i]]$value) == 'movement_matrix']
+  
+  # create se, cv and model name for dataframe
+  move_tmp$se = move_se
+  move_tmp$cv = move_tmp$se / move_tmp$value
+  move_tmp$model = model_name[i]
+  
+  # combine
+  move_all_df = rbind(move_all_df, move_tmp)
+} # end i
+
+# Do some quick munging
+move_all_df = move_all_df %>% 
+  rename(From = Var1, To = Var2, Time = Var3, Age = Var4) %>% 
+  mutate(
+    From = case_when(
+      From == 1 ~ "BS",
+      From == 2 ~ "AI",
+      From == 3 ~ "WGOA",
+      From == 4 ~ "CGOA",
+      From == 5 ~ "EGOA"
+    ), 
+    From = factor(From, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")),
+    To = case_when(
+      To == 1 ~ "BS",
+      To == 2 ~ "AI",
+      To == 3 ~ "WGOA",
+      To == 4 ~ "CGOA",
+      To == 5 ~ "EGOA"
+    ), 
+    To = factor(To, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")),
+    model = factor(model, levels = model_levels),
+    # Creating facets to combine comparisons
+    movement = ifelse(model %in% c("00-NoTag", "01-Base", "01-Age2Move", "01-Age3Move"), 'Movement', NA),
+    taglike = ifelse(model %in% c("01-Age3Move", "02-NegBin"), 'Tag Likelihood', NA),
+    tagrep = ifelse(model %in% c("02-NegBin", "03-Decadal", "03-FishBlock", "03-Space"), 'Tag Reporting', NA),
+    sptq = ifelse(model %in% c("03-FishBlock", "04-SptQ"), 'Spatial Q', NA),
+    Age = paste('AgeBlk', Age))
+
+# Values of movement estimates
+move_plot = ggplot(move_all_df, aes(x = To, y = value, color = model, group = model)) +
+  geom_line(lwd = 1, alpha = 0.85) +
+  scale_color_manual(values = colors) +
+  facet_grid(Age~From) +
+  theme_bw(base_size = 15) +
+  theme(legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust= 1),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'To', y = "P(Movement)", color = 'Model') 
+
+# CV of movemente estimates
+move_cv_plot = ggplot(move_all_df, aes(x = To, y = cv, color = model, group = model)) +
+  geom_line(lwd = 1, alpha = 0.85) +
+  scale_color_manual(values = colors) +
+  facet_grid(Age~From) +
+  theme_bw(base_size = 15) +
+  theme(legend.title = element_text(size = 13),
+        legend.text = element_text(size = 11),
+        legend.background = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust= 1),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = 'To', y = "CV P(Movement)", color = 'Model') 
+
+ggsave(
+  move_plot,
+  filename = here("figs", "Manuscript_Plots", "Movement_5Area_Comparison.png"),
+  width = 10, height = 6
+) 
+
+ggsave(
+  move_cv_plot,
+  filename = here("figs", "Manuscript_Plots", "Movement_CV_5Area_Comparison.png"),
+  width = 10, height = 6
 ) 
 
 ### Model Diagnostics -------------------------------------------------------

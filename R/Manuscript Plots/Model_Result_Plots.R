@@ -144,7 +144,7 @@ stationary_movement_plot = ggplot(stationary_dist, aes(x = To, y = move, color =
   facet_grid(AgeBlock~From) +
   scale_color_viridis_c(option = 'magma') +
   theme_bw(base_size = 24) +
-  labs(x = "Region", y = "Stationary Movement Probability") +
+  labs(x = "Region (To)", y = "Stationary Movement Probability") +
   theme(legend.position = c(0.87,0.2), legend.key.height=unit(0.5,"cm"), legend.key.width=unit(0.95,"cm"),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust= 1), 
         plot.background = element_rect(fill = "transparent", colour = NA),
