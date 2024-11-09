@@ -1812,7 +1812,67 @@ ggsave(
   plot_grid(movement_idx_plot, taglike_idx_plot, tagrep_idx_plot, sptq_idx_plot, ncol = 1,
             labels = c('A', 'B', 'C', 'D'),
             label_size = 23),
-  filename = here("figs", "Manuscript_Plots", "IdxFits_5Area_Comparison.png"),
+  filename = here("figs", "Manuscript_Plots", "IdxFits_US_5Area_Comparison.png"),
   width = 23, height = 20
 ) 
 
+# Japan fits
+# Fits to index directly (movement)
+movement_idx_plot = ggplot(srv_bio_df %>% filter(!is.na(movement),Country == 'Japan')) +
+  geom_pointrange(aes(x = Year, y = sum_estimates, ymin = LCI, ymax = UCI), alpha = 0.6, size = 1) +
+  geom_line(aes(x = Year, y = pred, color = model, lty = model), alpha = 1, lwd = 2) +
+  scale_color_manual(values = colors) +
+  facet_grid(movement~area_lab, scales = "free") +
+  labs(x = "Year", y = "Relative Population Numbers", color = "", lty = "") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(0.93, 0.85),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA))
+
+# Fits to index directly (taglike)
+taglike_idx_plot = ggplot(srv_bio_df %>% filter(!is.na(taglike),Country == 'Japan')) +
+  geom_pointrange(aes(x = Year, y = sum_estimates, ymin = LCI, ymax = UCI), alpha = 0.6, size = 1) +
+  geom_line(aes(x = Year, y = pred, color = model, lty = model), alpha = 1, lwd = 2) +
+  scale_color_manual(values = colors[-c(1, 2,3)]) +
+  facet_grid(taglike~area_lab, scales = "free") +
+  labs(x = "Year", y = "Relative Population Numbers", color = "", lty = "") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(0.93, 0.85),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA))
+
+# Fits to index directly (tagrep)
+tagrep_idx_plot = ggplot(srv_bio_df %>% filter(!is.na(tagrep),Country == 'Japan')) +
+  geom_pointrange(aes(x = Year, y = sum_estimates, ymin = LCI, ymax = UCI), alpha = 0.6, size = 1) +
+  geom_line(aes(x = Year, y = pred, color = model, lty = model), alpha = 1, lwd = 2) +
+  scale_color_manual(values = colors[-c(1,2,3,4)]) +
+  facet_grid(tagrep~area_lab, scales = "free") +
+  labs(x = "Year", y = "Relative Population Numbers", color = "", lty = "") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(0.93, 0.85),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA))
+
+# Fits to index directly (sptq)
+sptq_idx_plot = ggplot(srv_bio_df %>% filter(!is.na(sptq),Country == 'Japan')) +
+  geom_pointrange(aes(x = Year, y = sum_estimates, ymin = LCI, ymax = UCI), alpha = 0.6, size = 1) +
+  geom_line(aes(x = Year, y = pred, color = model, lty = model), alpha = 1, lwd = 2) +
+  scale_color_manual(values = colors[-c(1,2,3,4,5,6,8)]) +
+  facet_grid(sptq~area_lab, scales = "free") +
+  labs(x = "Year", y = "Relative Population Numbers", color = "", lty = "") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(0.93, 0.85),
+        legend.background = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, -0.075, 0.1), "cm"),
+        plot.background = element_rect(fill = "transparent", colour = NA))
+
+ggsave(
+  plot_grid(movement_idx_plot, taglike_idx_plot, tagrep_idx_plot, sptq_idx_plot, ncol = 1,
+            labels = c('A', 'B', 'C', 'D'),
+            label_size = 23),
+  filename = here("figs", "Manuscript_Plots", "IdxFits_JP_5Area_Comparison.png"),
+  width = 23, height = 20
+) 

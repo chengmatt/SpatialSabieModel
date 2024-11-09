@@ -38,11 +38,11 @@ nmfs_areas = nmfs_areas %>% mutate(GEN_NAME = ifelse(NAME %in% c("East Yakutat /
       NAME == "Bering Sea" ~ "Bering Sea (BS)",
       NAME == "Western Gulf of Alaska" ~ "Western Gulf of Alaska (WGOA)",
       NAME == "Central Gulf of Alaska" ~ "Central Gulf of Alaska (CGOA)",
-      NAME == "West Yakutat" ~ "West Yakutat (EGOA)",
-      NAME == "East Yakutat / Southeast Alaska" ~ "East Yakutat/Southeast (EGOA)"
+      NAME == "West Yakutat" ~ "West Yakutat (WY)",
+      NAME == "East Yakutat / Southeast Alaska" ~ "East Yakutat/Southeast (EY/SE)"
     ),
     NAME = factor(NAME, levels = c('Bering Sea (BS)', 'Aleutian Islands (AI)', 'Western Gulf of Alaska (WGOA)', 
-                                   'Central Gulf of Alaska (CGOA)', 'West Yakutat (EGOA)', "East Yakutat/Southeast (EGOA)")))
+                                   'Central Gulf of Alaska (CGOA)', 'West Yakutat (WY)', "East Yakutat/Southeast (EY/SE)")))
 
 # Get map for plotting
 west = ne_states(c("United States of America", "Russia", "Canada"), returnclass = "sf")
@@ -62,8 +62,10 @@ rsa_labels = c(
   paste('WGOA', 'M', 2:31, sep = '-'),
   paste('CGOA', 'F', 2:31, sep = '-'),
   paste('CGOA', 'M', 2:31, sep = '-'),
-  paste('EGOA', 'F', 2:31, sep = '-'),
-  paste('EGOA', 'M', 2:31, sep = '-')
+  paste('WY', 'F', 2:31, sep = '-'),
+  paste('WY', 'M', 2:31, sep = '-'),
+  paste('EY/SE', 'F', 2:31, sep = '-'),
+  paste('EY/SE', 'M', 2:31, sep = '-')
 )
 
 # region age labels
@@ -72,7 +74,8 @@ ra_labels = c(
   paste('AI', 2:31, sep = '-'),
   paste('WGOA', 2:31, sep = '-'),
   paste('CGOA', 2:31, sep = '-'),
-  paste('EGOA', 2:31, sep = '-')
+  paste('WY', 2:31, sep = '-'),
+  paste('EY/SE', 2:31, sep = '-')
 )
 
 # region, sex, length, labels
@@ -85,8 +88,10 @@ rsl_labels = c(
   paste('WGOA', 'M', 41:99, sep = '-'),
   paste('CGOA', 'F', 41:99, sep = '-'),
   paste('CGOA', 'M', 41:99, sep = '-'),
-  paste('EGOA', 'F', 41:99, sep = '-'),
-  paste('EGOA', 'M', 41:99, sep = '-')
+  paste('WY', 'F', 41:99, sep = '-'),
+  paste('WY', 'M', 41:99, sep = '-'),
+  paste('EY/SE', 'F', 41:99, sep = '-'),
+  paste('EY/SE', 'M', 41:99, sep = '-')
 )
 
 # region length labels
@@ -95,7 +100,8 @@ rl_labels = c(
   paste('AI', 41:99, sep = '-'),
   paste('WGOA',41:99, sep = '-'),
   paste('CGOA',41:99, sep = '-'),
-  paste('EGOA',41:99, sep = '-')
+  paste('WY',41:99, sep = '-'),
+  paste('EY/SE',41:99, sep = '-')
 )
 
 colors = unname(ggthemes::ggthemes_data[["colorblind"]][["value"]]) # get colors
@@ -119,10 +125,10 @@ age_props_by_year_region_sex = survey_age_df %>% filter(Sex != 3, Age >= 2) %>%
       NPFMC.Sablefish.Mgmt.Area == "Bering Sea" ~ "BS",
       NPFMC.Sablefish.Mgmt.Area == "Western Gulf of Alaska" ~ "WGOA",
       NPFMC.Sablefish.Mgmt.Area == "Central Gulf of Alaska" ~ "CGOA",
-      NPFMC.Sablefish.Mgmt.Area == "West Yakutat" ~ "EGOA",
-      NPFMC.Sablefish.Mgmt.Area == "East Yakutat/Southeast" ~ "EGOA"
+      NPFMC.Sablefish.Mgmt.Area == "West Yakutat" ~ "WY",
+      NPFMC.Sablefish.Mgmt.Area == "East Yakutat/Southeast" ~ "EY/SE"
     ),
-    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA')),
+    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', 'EY/SE')),
     Age = ifelse(Age >= 31, 31, Age),
     Sex_Abrev = ifelse(Sex == 1, "M", "F"),
     RSA_Cat = paste(Mgmt_Abrev, Sex_Abrev, Age, sep = '-'), # Region, Sex, Age
@@ -232,10 +238,10 @@ len_props_by_year_region_sex = survey_length_df %>% filter(Sex != 3, Length >= 4
       NPFMC.Sablefish.Management.Area == "Bering Sea" ~ "BS",
       NPFMC.Sablefish.Management.Area == "Western Gulf of Alaska" ~ "WGOA",
       NPFMC.Sablefish.Management.Area == "Central Gulf of Alaska" ~ "CGOA",
-      NPFMC.Sablefish.Management.Area == "West Yakutat" ~ "EGOA",
-      NPFMC.Sablefish.Management.Area == "East Yakutat/Southeast" ~ "EGOA"
+      NPFMC.Sablefish.Management.Area == "West Yakutat" ~ "WY",
+      NPFMC.Sablefish.Management.Area == "East Yakutat/Southeast" ~ "EY/SE"
     ),
-    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA')),
+    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE")),
     Length = ifelse(Length >= 99, 99, Length),
     Sex_Abrev = ifelse(Sex == 1, "M", "F"),
     RSL_Cat = paste(Mgmt_Abrev, Sex_Abrev, Length, sep = '-'), # Region, Sex, Length
@@ -481,7 +487,11 @@ srv_depth_len_plot = survey_length_df %>%
   group_by(Year, Stratum.Description, NPFMC.Sablefish.Management.Area) %>% 
   summarize(n = n()) %>% 
   mutate(NPFMC.Sablefish.Management.Area = 
-           ifelse(NPFMC.Sablefish.Management.Area == "Aleutians", 'Aleutian Islands', NPFMC.Sablefish.Management.Area)) %>% 
+           ifelse(NPFMC.Sablefish.Management.Area == "Aleutians", 'Aleutian Islands', NPFMC.Sablefish.Management.Area),
+         NPFMC.Sablefish.Management.Area = factor(NPFMC.Sablefish.Management.Area,
+                                                  levels = c("Bering Sea", "Aleutian Islands",
+                                                             "Western Gulf of Alaska", "Central Gulf of Alaska",
+                                                             "West Yakutat", "East Yakutat/Southeast"))) %>% 
   filter(!Stratum.Description %in% c("1201m +", "Unknown")) %>% 
   ggplot(aes(Stratum.Description, n, fill = NPFMC.Sablefish.Management.Area)) +
   geom_boxplot(outlier.colour = NA, alpha = 0.5) +
@@ -510,10 +520,10 @@ age_props_by_year_region_sex = observer_age_df %>% filter(Sex != 3, Age >= 2) %>
       FMP.Subarea == "BS" ~ "BS",
       FMP.Subarea == "WG" ~ "WGOA",
       FMP.Subarea == "CG" ~ "CGOA",
-      FMP.Subarea == "WY" ~ "EGOA",
-      FMP.Subarea == "SE" ~ "EGOA"
+      FMP.Subarea == "WY" ~ "WY",
+      FMP.Subarea == "SE" ~ "EY/SE"
     ),
-    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA')),
+    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE")),
     Age = ifelse(Age >= 31, 31, Age),
     Sex_Abrev = Sex,
     RSA_Cat = paste(Mgmt_Abrev, Sex_Abrev, Age, sep = '-'), # Region, Sex, Age
@@ -892,10 +902,10 @@ obs_plot_df = observer_length_df %>%
       FMP.Subarea == "BS" ~ "BS",
       FMP.Subarea == "WG" ~ "WGOA",
       FMP.Subarea == "CG" ~ "CGOA",
-      FMP.Subarea == "WY" ~ "EGOA",
-      FMP.Subarea == "SE" ~ "EGOA"
+      FMP.Subarea == "WY" ~ "WY",
+      FMP.Subarea == "SE" ~ "EY/SE"
     ),
-    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA'))) %>% 
+    Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE"))) %>% 
   filter(!is.na(Mgmt_Abrev))
 
 # Depth
@@ -904,7 +914,7 @@ geom_boxplot(outlier.colour = NA, alpha = 0.5, outliers = F) +
 geom_hline(obs_plot_df %>% group_by(Gear.Description, Mgmt_Abrev) %>% 
            summarize(Bottom.Depth..Fathoms. = mean((Bottom.Depth..Fathoms. * 1.829), na.rm = T)),
            mapping = aes(yintercept = Bottom.Depth..Fathoms.), lty = 2, color = 'blue', lwd = 1.3) +
-labs(x = "Year", y = "Bottom Depth (m)") +
+labs(x = "Year", y = "Bottom Depth (m) of Fishing Events") +
 facet_grid(Gear.Description~Mgmt_Abrev) +
 ggthemes::scale_fill_colorblind() +
 theme_bw(base_size = 15) +
@@ -926,7 +936,7 @@ lon_len_obs = ggplot(obs_plot_df, aes(Year, x, group = Year)) +
                summarize(x = mean(x, na.rm = T)),
              mapping = aes(yintercept = x), lty = 2, color = 'blue', lwd = 1.3) +
   labs(x = "Year", y = "End Longitude (Shifted) of Fishing Events") +
-  facet_grid(Gear.Description~Mgmt_Abrev, scales = 'free_y') +
+  facet_wrap(Gear.Description~Mgmt_Abrev, nrow = 3, scales = 'free_y') +
   ggthemes::scale_fill_colorblind() +
   theme_bw(base_size = 15) +
   theme(plot.background = element_rect(fill = "transparent", colour = NA))
@@ -940,7 +950,7 @@ lat_len_obs = ggplot(obs_plot_df, aes(Year, LatDD.End, group = Year)) +
                summarize(LatDD.End = mean(LatDD.End, na.rm = T)),
              mapping = aes(yintercept = LatDD.End), lty = 2, color = 'blue', lwd = 1.3) +
   labs(x = "Year", y = "End Latitude of Fishing Events") +
-  facet_grid(Gear.Description~Mgmt_Abrev) +
+  facet_wrap(Gear.Description~Mgmt_Abrev, nrow = 3, scales = 'free_y') +
   ggthemes::scale_fill_colorblind() +
   theme_bw(base_size = 15) +
   theme(plot.background = element_rect(fill = "transparent", colour = NA))
@@ -1331,13 +1341,13 @@ tag_release_df = readRDS(file = file.path("Data", "Tag_releaseDF.RDS")) %>% st_d
 
 ##### Residual Munging --------------------------------------------------------
 ## separate inner-gulf releases CH and CL
-area_labs = data.frame(actual_lab = c("WGOA","Inner-EGOA","CGOA","WGOA", "CGOA", "EGOA","EGOA","BS","AI"),
+area_labs = data.frame(actual_lab = c("WGOA","Inner-EGOA","CGOA","WGOA", "CGOA", "WY","EY/SE","BS","AI"),
                        obs_catch_lab = c("WGOA", "EGOA (outer & innner)","CGOA","Western Gulf of Alaska", "Central Gulf of Alaska", "West Yakutat", "East Yakutat / Southeast Alaska", "Bering Sea" , "Aleutian Islands" ))
 
 tag_recovery_df$area_lab = area_labs$actual_lab[match(tag_recovery_df$NAME, area_labs$obs_catch_lab)]
 tag_release_df$area_lab = area_labs$actual_lab[match(tag_release_df$NAME, area_labs$obs_catch_lab)]
 
-areas_of_interest = c("BS","AI", "WGOA", "CGOA","EGOA")
+areas_of_interest = c("BS","AI", "WGOA", "CGOA","WY", "EY/SE")
 tag_recovery_df = tag_recovery_df %>% filter(area_lab %in% areas_of_interest, !is.na(area_lab))
 tag_release_df = tag_release_df %>% filter(area_lab %in% areas_of_interest, !is.na(area_lab))
 
@@ -1409,15 +1419,15 @@ temp = tag_recovery_df %>% inner_join(tag_release_df, by = "recovery_id")
 temp_release = tag_release_df %>% full_join(tag_recovery_df, by = "recovery_id")
 ## when we merge area_lab.x is RELEASE region and area_lab.y is RECOVERY region
 temp_release = temp_release %>% group_by(area_lab.y, area_lab.x) %>% summarise(releases = n(), recoveries = sum(!is.na(TAG_TYPE.x)))
-temp_release$area_lab.y = factor(temp_release$area_lab.y, levels = rev(c("BS", "AI","WGOA","CGOA","EGOA")), ordered = T)
-temp_release$area_lab.x = factor(temp_release$area_lab.x, levels = rev(c("BS", "AI","WGOA","CGOA","EGOA")), ordered = T)
+temp_release$area_lab.y = factor(temp_release$area_lab.y, levels = rev(c("BS", "AI","WGOA","CGOA","WY", "EY/SE")), ordered = T)
+temp_release$area_lab.x = factor(temp_release$area_lab.x, levels = rev(c("BS", "AI","WGOA","CGOA","WY", "EY/SE")), ordered = T)
 sum_tag_release_df = temp_release %>% group_by(area_lab.x) %>% mutate(prop = recoveries / sum(recoveries), releases= sum(releases))
 # drop NA regions
 sum_tag_release_df = sum_tag_release_df %>% filter(!is.na(area_lab.y))
 
 sum_tag_release_df$area_lab_release = paste0(sum_tag_release_df$area_lab.x, "\n(", sum_tag_release_df$releases,")")
 unique(sum_tag_release_df$area_lab_release)
-sum_tag_release_df$area_lab_release = factor(sum_tag_release_df$area_lab_release, levels = rev(c(    "BS\n(28126)" , "AI\n(18917)","WGOA\n(30875)",   "CGOA\n(81164)",  "EGOA\n(117342)" )), ordered = T)
+sum_tag_release_df$area_lab_release = factor(sum_tag_release_df$area_lab_release, levels = rev(c(    "BS\n(28126)" , "AI\n(18917)","WGOA\n(30875)",   "CGOA\n(81164)",  "WY\n(37969)",  "EY/SE\n(79373)")), ordered = T)
 
 
 ##### Plot --------------------------------------------------------------------
@@ -1457,18 +1467,18 @@ observer_catch_nad83_df = st_transform(observer_catch_sf, crs = st_crs(longline_
 catch_nad83_df = st_transform(observer_catch_sf, crs = st_crs(longline_areas))
 catch_nad83_df = catch_nad83_df %>% st_join(longline_areas)
 
-obs_catch_labs = data.frame(actual_lab = c("WGOA", "CGOA", "EGOA","EGOA","BS","AI"),
+obs_catch_labs = data.frame(actual_lab = c("WGOA", "CGOA", "WY","EY/SE","BS","AI"),
                             obs_catch_lab = c("Western Gulf of Alaska", "Central Gulf of Alaska", "West Yakutat", "East Yakutat / Southeast Alaska", "Bering Sea" , "Aleutian Islands" ))
-catch_labs = data.frame(actual_lab = c("WGOA", "CGOA", "EGOA","EGOA","EGOA","BS","AI"),
+catch_labs = data.frame(actual_lab = c("WGOA", "CGOA", "WY","EY/SE","EY/SE","BS","AI"),
                         catch_lab = c("WG", "CG", "WY", "EY", "SE" ,"BS" , "AI" ))
 
 catch_nad83_df$area_lab = obs_catch_labs$actual_lab[match(catch_nad83_df$NAME, obs_catch_labs$obs_catch_lab)]
 catch_post_90$area_lab = catch_labs$actual_lab[match(catch_post_90$fmp_subarea, catch_labs$catch_lab)]
 
 catch_by_year_region = catch_post_90 %>% group_by(year, area_lab) %>% summarise(catch = sum(weight_posted)) %>% rename(Year = year)
-catch_by_year_region = catch_by_year_region %>% mutate(area_lab = case_when(area_lab == "EY"  ~ "EGOA",
-                                                                            area_lab == "WY"  ~ "EGOA",
-                                                                            TRUE ~ area_lab))
+# catch_by_year_region = catch_by_year_region %>% mutate(area_lab = case_when(area_lab == "EY"  ~ "EGOA",
+#                                                                             area_lab == "WY"  ~ "EGOA",
+#                                                                             TRUE ~ area_lab))
 
 # summarise by year and area
 reported_catch_by_year = catch_post_90 %>% group_by(area_lab, year) %>% summarise(catch_post_90 = sum(weight_posted))
@@ -1487,7 +1497,7 @@ shpe_manual = c("Reported Samples" = 1, "Observed Catch" = 3)
 col_manual = c("Reported Samples" = "red", "Observed Catch" = "blue")
 
 prop_fish_catch_effort_samp = ggplot(full_catch_by_year %>% filter(year>= 1990) %>% 
-                                       mutate(area_lab = factor(area_lab, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA'))),
+                                       mutate(area_lab = factor(area_lab, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE"))),
                                      aes(y = year, x = area_lab, col = type, shape = type)) +
   geom_point(aes(size = percentage_catch * if_else(type == "Observed Catch", 0.5, 1))) +
   scale_shape_manual(values=shpe_manual) +
@@ -1506,7 +1516,8 @@ prop_fish_catch_effort_samp
 full_catch_df = readRDS(file = here("Data", "5-Area", "Catch_by_year_area_gear.RDS"))
 fixed_gear_with_imputation = readRDS(file = here("Data", "5-Area", "fixed_gear_with_imputations_S1.RDS"))
 trawl_gear_with_imputation = readRDS(file = here("Data", "5-Area", "trawl_gear_with_imputations_S1.RDS"))
-srv_area = readRDS(here("Data", "Survey", "regional_abundance_estimates.RDS"))
+# srv_area = readRDS(here("Data", "Survey", "regional_abundance_estimates.RDS"))
+srv_area = read.csv(here("Data", "Survey", "Area RPNs for Strata 3 to 7.csv"))
 
 # convert to metric tonnes
 full_catch_df$catch_mt = full_catch_df$catch / 1000
@@ -1548,14 +1559,16 @@ srv_idx_area = ggplot(srv_area %>%
                           NPFMC.Sablefish.Management.Area == "Bering Sea" ~ "BS",
                           NPFMC.Sablefish.Management.Area == "Western Gulf of Alaska" ~ "WGOA",
                           NPFMC.Sablefish.Management.Area == "Central Gulf of Alaska" ~ "CGOA",
-                          NPFMC.Sablefish.Management.Area == "Eastern Gulf of Alaska" ~ "EGOA",
+                          NPFMC.Sablefish.Management.Area == "West Yakutat" ~ "WY",
+                          NPFMC.Sablefish.Management.Area == "East Yakutat/Southeast" ~ "EY/SE"
                         ),
-                        Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA'))) %>% 
+                        Mgmt_Abrev = factor(Mgmt_Abrev, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE"))) %>% 
+                        group_by(Country, Mgmt_Abrev, Year) %>% 
+                        summarize(RPN = sum(RPN, na.rm = T)) %>% 
                         filter(Year <= 2021),
-                      aes(x = Year, y = area_RPN, color = Country, fill = Country, ymin = LCI, ymax = UCI)) +
-  geom_line(lty = 2) +
-  geom_point(size = 3) +
-  geom_ribbon(alpha = 0.4, color = NA) +
+                      aes(x = Year, y = RPN, color = Country, fill = Country, shape = Country, lty = Country)) +
+  geom_line(lwd = 1.2) +
+  geom_point(size = 4) +
   facet_wrap(~Mgmt_Abrev, nrow = 1) +
   theme_bw(base_size = 18) +
   theme(legend.position = "bottom",
@@ -1584,8 +1597,8 @@ age_dat_srv = age_dat_srv %>%
            Mgmt_Area == "Bering Sea" ~ "BS",
            Mgmt_Area == "Western Gulf of Alaska" ~ "WGOA",
            Mgmt_Area == "Central Gulf of Alaska" ~ "CGOA",
-           Mgmt_Area == "West Yakutat" ~ "EGOA",
-           Mgmt_Area == "East Yakutat/Southeast" ~ "EGOA"
+           Mgmt_Area == "West Yakutat" ~ "WY",
+           Mgmt_Area == "East Yakutat/Southeast" ~ "EY/SE"
            ), Type = "Survey")
 
 # fishery
@@ -1610,12 +1623,12 @@ age_dat_obs = age_dat_obs %>%
            Mgmt_Area == "BS" ~ "BS",
            Mgmt_Area == "WG" ~ "WGOA",
            Mgmt_Area == "CG" ~ "CGOA",
-           Mgmt_Area == "WY" ~ "EGOA",
-           Mgmt_Area == "SE" ~ "EGOA"
+           Mgmt_Area == "WY" ~ "WY",
+           Mgmt_Area == "SE" ~ "EY/SE"
          ))
 
 age_dat = rbind(age_dat_obs, age_dat_srv) %>% 
-  mutate(Mgmt_Area = factor(Mgmt_Area, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'EGOA')))
+  mutate(Mgmt_Area = factor(Mgmt_Area, levels = c('BS', 'AI', 'WGOA', 'CGOA', 'WY', "EY/SE")))
 
 # Plot
 grwth_area_gear = ggplot(age_dat %>% filter(!str_detect(Type, "Trawl")) %>% 
@@ -1825,3 +1838,31 @@ ggsave(
 )
 
 
+
+### Base Map ----------------------------------------------------------------
+
+# Save map for making a conceptual model 
+base_map = ggplot() +
+  geom_sf(data = west, lwd = 0.2, color = 'black') + # World Map
+  geom_sf(data = nmfs_areas, aes(lty = GEN_NAME), fill = NA, alpha = 0.35, lwd = 0.4) +
+  
+  # # Annotate with labels
+  # annotate("text", label = "Alaska", x = 208, y = 65, size = 8) + # Alaska label
+  # annotate("text", label = "Canada", x = 224.65, y = 63, size = 8) + # Canada label
+  # annotate("text", label = "Russia", x = 172, y = 67, size = 8) + # Canada label
+  
+  coord_sf(ylim = c(45, 70.5), xlim = c(165, 235)) + # Restrict Map Area
+  theme_bw(base_size = 15) +
+  theme(legend.position = 'none', legend.box = "vertical", legend.background = element_blank(),
+        legend.spacing.y = unit(0.075, "cm"),
+        plot.title = element_text(hjust = 0.5),
+        axis.text = element_text(size = 18),
+        axis.title = element_text(size = 23),
+        plot.background = element_rect(fill = "transparent", colour = NA)) +
+  labs(x = "Longitude", y = "Latitude")
+
+ggsave(
+  base_map,
+  filename = here("figs", "Manuscript_Plots", "Base_Map.png"),
+  width = 20, height = 15
+)
