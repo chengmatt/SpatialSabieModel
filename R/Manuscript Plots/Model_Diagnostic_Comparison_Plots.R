@@ -235,7 +235,7 @@ for(i in 1:length(model_list)) {
   obs = t(model_list[[i]]$obs_fixed_catchatage[,1,40:62]) # get observed
   pred = t(model_list[[i]]$pred_fixed_catchatage[,1,40:62]) # get predicted
   rownames(pred) = 1999:2021 # some row name munging
-  osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = age_labels, drop_bin = 1) %>% 
+  osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = age_labels, drop_bin = 2) %>% 
     mutate(model = model_name[i]) # get OSA residuals
   osa_all = rbind(osa_all, osa_res_tmp)
 } # end i
@@ -1700,6 +1700,7 @@ ggsave(
   width = 15, height = 10
 ) 
 
+
 ##### Index -------------------------------------------------------------------
 # Read in abundance index used
 design_survey_index = readRDS(file = here("Data", "Survey", "regional_abundance_estimates.RDS"))
@@ -1876,3 +1877,4 @@ ggsave(
   filename = here("figs", "Manuscript_Plots", "IdxFits_JP_5Area_Comparison.png"),
   width = 23, height = 20
 ) 
+

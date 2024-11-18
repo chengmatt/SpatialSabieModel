@@ -1838,19 +1838,12 @@ ggsave(
 )
 
 
-
 ### Base Map ----------------------------------------------------------------
 
 # Save map for making a conceptual model 
 base_map = ggplot() +
   geom_sf(data = west, lwd = 0.2, color = 'black') + # World Map
   geom_sf(data = nmfs_areas, aes(lty = GEN_NAME), fill = NA, alpha = 0.35, lwd = 0.4) +
-  
-  # # Annotate with labels
-  # annotate("text", label = "Alaska", x = 208, y = 65, size = 8) + # Alaska label
-  # annotate("text", label = "Canada", x = 224.65, y = 63, size = 8) + # Canada label
-  # annotate("text", label = "Russia", x = 172, y = 67, size = 8) + # Canada label
-  
   coord_sf(ylim = c(45, 70.5), xlim = c(165, 235)) + # Restrict Map Area
   theme_bw(base_size = 15) +
   theme(legend.position = 'none', legend.box = "vertical", legend.background = element_blank(),
