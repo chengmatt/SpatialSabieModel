@@ -444,7 +444,7 @@ for(c_ndx in 1:length(countries)) { ## go backwards becuase its starts with Japa
 
 
 ### Abundance Indices -------------------------------------------------------
-design_survey_index = readRDS(file = file.path("Data", "Survey", "regional_abundance_estimates.RDS"))
+design_survey_index = readRDS(file = here("Data", "Survey", "regional_abundance_estimates.RDS"))
 design_survey_index$area_lab = design_survey_index$NPFMC.Sablefish.Management.Area
 
 design_survey_index = design_survey_index %>% group_by(Country, Year) %>% 

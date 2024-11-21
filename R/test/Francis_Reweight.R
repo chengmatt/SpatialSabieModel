@@ -40,7 +40,7 @@ francis_rwgt <- function(mle_report, area, bin_list) {
         exp_bar[y] <- sum(bin_list[[i]] * tmp_exp[y,]) # get mean pred comps
         obs_bar[y] <- sum(bin_list[[i]] * tmp_obs[y,]) # get mean obs comps
         v_y[y] <- sum(bin_list[[i]]^2*tmp_exp[y,])-exp_bar[y]^2 # get variance
-        w_denom[y]<-(obs_bar[y]-exp_bar[y])/sqrt(v_y[y]/tmp_iss_obs[y]) # get weights
+        w_denom[y]<-(obs_bar[y]-exp_bar[y])/sqrt(v_y[y]/200) # get weights (fixing at constant 200)
       } # end y loop
       
       # Get weights 
@@ -115,7 +115,7 @@ francis_rwgt <- function(mle_report, area, bin_list) {
           exp_bar[y] <- sum(bin_list[[i]] * tmp_exp[y,]) # get mean pred comps
           obs_bar[y] <- sum(bin_list[[i]] * tmp_obs[y,]) # get mean obs comps
           v_y[y] <- sum(bin_list[[i]]^2*tmp_exp[y,])-exp_bar[y]^2 # get variance
-          w_denom[y]<-(obs_bar[y]-exp_bar[y])/sqrt(v_y[y]/tmp_iss_obs[y]) # get weights
+          w_denom[y]<-(obs_bar[y]-exp_bar[y])/sqrt(v_y[y]/40) # get weights (fixing at constant 40)
         } # end y loop
         
         # Get weights 
