@@ -25,17 +25,54 @@ colors = unname(ggthemes::ggthemes_data[["colorblind"]][["value"]]) # get colors
 # Model Convergence -------------------------------------------------------
 # Look at convergence real quick
 files = c(list.files(out_5area_path), list.files(out_1area_path))
-files = files[!str_detect(files, ".RDS")]
+files = files[!str_detect(files, ".RDS|NoTag|Tagging|FishBlock_|.csv")]
 
 conv_all = data.frame()
+
 for(i in 1:length(files)) {
-  if(str_detect(files[i], "5-Area")) mod = readRDS(here(out_5area_path, files[i], 'sd_report.RDS'))
-  if(str_detect(files[i], "1-Area")) mod = readRDS(here(out_1area_path, files[i], 'sd_report.RDS'))
+  if(str_detect(files[i], "5-Area")) {
+    mod = readRDS(here(out_5area_path, files[i], 'sd_report.RDS'))
+    rep = readRDS(here(out_5area_path, files[i], 'mle_report.RDS'))
+  }
+  if(str_detect(files[i], "1-Area")) {
+    mod = readRDS(here(out_1area_path, files[i], 'sd_report.RDS'))
+    rep = readRDS(here(out_1area_path, files[i], 'mle_report.RDS'))
+  }
   tmp = data.frame(mod = files[i], pdHess = mod$pdHess, grad = max(abs(mod$gradient.fixed)),
-                   max_se = max(diag(mod$cov.fixed)))
+                   max_se = max(diag(mod$cov.fixed)), jnll = sum(rep$nll))
   conv_all = rbind(tmp ,conv_all)
 }
 
+# Get negative likelihood values
+# Look at convergence real quick
+files_5area = c(list.files(out_5area_path))
+files_5area = files_5area[!str_detect(files_5area, ".RDS|NoTag|Tagging|FishBlock_|.csv")]
+nLL_vals <- data.frame()
+for(i in 1:length(files_5area)) {
+  # Read files in
+  rep = readRDS(here(out_5area_path, files_5area[i], 'mle_report.RDS'))
+  tmp = data.frame(mod = files_5area[i], 
+                   fixed_age = rep$nll[1],
+                   trwl_len = rep$nll[2], 
+                   fixed_len = rep$nll[3], 
+                   srv_age = rep$nll[4],
+                   srv_idx = rep$nll[5], 
+                   tag_recv = rep$nll[8],
+                   jnll = sum(rep$nll))
+  nLL_vals = rbind(tmp, nLL_vals)
+}
+
+# for filtering and factoring
+model_levels <- c("5-Area-1960-01-Base", "5-Area-1960-01-Age_2_Move", "5-Area-1960-01-Age_3_Move",
+                 "5-Area-1960-02-NegBin", "5-Area-1960-03-Decadal", "5-Area-1960-03-FishBlock",
+                 "5-Area-1960-03-Space", "5-Area-1960-04-SptQ")
+
+# filter stuff and relevel
+nLL_vals <- nLL_vals %>% 
+  filter(mod %in% model_levels) %>% 
+  arrange(factor(mod, levels = model_levels))
+
+write.csv(nLL_vals, here("output", "Final Models", "5-Area-1960", "nLL.csv"))
 
 # Final 1-Area Comparisons + Diagnostics (No Tag vs. Tag) ------------------------------------------------------
 model_list = list() # list to store models in 
@@ -44,8 +81,8 @@ model_dat = list() # list to store model data
 
 # get model path f or 1 area models here
 model_path = list(
-  here(out_1area_path, "1-Area-1960-Final"),
-  here(out_1area_path, "1-Area-1960-Final-Tagging")
+  here(out_1area_path, "1-Area-1960-Final")
+  # here(out_1area_path, "1-Area-1960-Final-Tagging")
 )
 
 model_name = c("1-Area", '1-Area-Tag') # set up model names
@@ -86,22 +123,6 @@ ggsave(
   
 
 ### Model Diagnostics -------------------------------------------------------
-##### Tag Recovery ------------------------------------------------------------
-obs_tag_rec_1area = apply(model_list[[2]]$obs_tag_recovery, 3, sum)
-pred_tag_rec_1area = apply(model_list[[2]]$pred_tag_recovery, 3, sum)
-tag_rec_1area = data.frame(Obs = obs_tag_rec_1area, Pred = pred_tag_rec_1area, Year = 1:43, model = '1-Area-Tag') # combine for plotting
-
-# Tag Recovery from 1-Area Model
-ggplot(tag_rec_1area) +
-  geom_point(aes(x = Year + 1978, y = Obs), size = 2) +
-  geom_line(aes(x = Year + 1978, y = Pred), lwd = 1, alpha = 0.5) +
-  coord_cartesian(ylim = c(0,NA)) +
-  theme_bw(base_size = 15) +
-  theme(legend.position = c(0.9,0.9),
-        legend.background = element_blank(),
-        plot.background = element_rect(fill = "transparent", colour = NA)) +
-  labs(x = 'Year', y = 'Tag Recoveries', color = 'Model', fill = 'Model') 
-
 ##### Index -------------------------------------------------------------------
 # Read in abundance index used
 design_survey_index = readRDS(file = here("Data", "Survey", "regional_abundance_estimates.RDS"))
@@ -263,7 +284,82 @@ ggsave(
   width = 10, height = 10
 )
 
- 
+###### Fixed-Gear Length Comps ---------------------------------------------------------------
+obs_fixed_len = reshape2::melt(model_list[[1]]$obs_fixed_catchatlgth) %>% 
+  rename(Sex_Len = Var1, region = Var2, Year = Var3, Obs = value) %>% 
+  group_by(region, Year) %>% 
+  mutate(total = sum(Obs), obs_prop = Obs / total) %>% 
+  filter(total != 0)
+
+# get predicted fixed gear
+pred_fixed_len = data.frame()
+for(i in 1:length(model_list)) {
+  pred_fixed_len_tmp = reshape2::melt(model_list[[i]]$pred_fixed_catchatlgth) %>% 
+    rename(Sex_Len = Var1, region = Var2, Year = Var3, pred = value) %>%  # get predicted 
+    mutate(model = model_name[i], nll = model_list[[i]]$nll[1])
+  pred_fixed_len = rbind(pred_fixed_len, pred_fixed_len_tmp)
+} # end i
+
+fixed_age_1area_df = obs_fixed_len %>% 
+  left_join(pred_fixed_len, by = c("Sex_Len", "Year")) 
+
+# plot fixed gear age average fits
+fixed_gear_avg = ggplot() +
+  geom_col(fixed_age_1area_df %>% 
+             filter(model == model_name[1]) %>% 
+             group_by(Sex_Len, model) %>%
+             summarize(Obs_Mean = mean(obs_prop)),
+           mapping = aes(x = Sex_Len, y = Obs_Mean), alpha = 0.25, color = 'black') + # observed data
+  geom_line(fixed_age_1area_df %>% 
+              group_by(Sex_Len, model) %>%
+              summarize(Pred_Mean = mean(pred)), # predictions
+            mapping = aes(x = Sex_Len, y = Pred_Mean, color = model, lty = model), lwd = 1) +
+  scale_x_continuous(labels = len_labels[seq(1,60, 4)], breaks = seq(1, 60, 4)) +
+  scale_color_manual(values = colors) +
+  labs(x = "Sex-Length Category", y = "Fixed-Gear Length Compositions", color = "Model", lty = "Model") +
+  theme_bw(base_size = 15) + 
+  theme(legend.position = c(0.93,0.86),
+        legend.background = element_blank(),
+        plot.background = element_rect(fill = "transparent", colour = NA)) 
+
+fixed_gear_avg
+
+# plot residuals 
+# Get OSA residuals first
+osa_all = data.frame()
+for(i in 1:length(model_list)) { 
+  obs = t(model_list[[i]]$obs_fixed_catchatage[,1,model_list[[i]]$fixed_catchatlgth_indicator[1,] == 1]) # get observed
+  pred = t(model_list[[i]]$pred_fixed_catchatage[,1,model_list[[i]]$fixed_catchatlgth_indicator[1,] == 1]) # get predicted
+  rownames(pred) = 1991:1998 # some row name munging
+  osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = len_labels, drop_bin = 2) %>% 
+    mutate(model = model_name[i]) # get OSA residuals
+  osa_all = rbind(osa_all, osa_res_tmp)
+} # end i
+
+osa_all <- osa_all %>% rename(Sex_Len = Sex_Age)
+
+# OSA residuals
+osa_1area = ggplot(osa_all, aes(Year, as.numeric(Sex_Len), size=abs(resid), color=resid>0)) + 
+  geom_point(alpha = 0.35) +
+  labs(x = "Year", y = 'Sex-Length Category', size = "Absolute Residual", color = "Obs > Pred (Pos Resid)") +
+  guides(color = guide_legend(order = 0), size = guide_legend(order = 1)) +
+  facet_wrap(~model) +
+  scale_y_continuous(labels = len_labels[-1][seq(2,60, 4)], breaks = seq(2, 60, 4)) +
+  theme_bw(base_size = 15) + 
+  theme(legend.position = "top",
+        legend.background = element_blank(),
+        plot.background = element_rect(fill = "transparent", colour = NA)) 
+
+osa_1area
+
+ggsave(
+  plot_grid(osa_1area, fixed_gear_avg, ncol = 1,
+            align = "hv", axis = 'l', rel_heights = c(0.6, 0.4),
+            labels = c('A', 'B'),
+            label_size = 25, hjust = -1.85),
+  filename = here("figs", "Manuscript_Plots", "FixedLen_1Area_Comparison.png"),
+  width = 10, height = 10
+)
 ###### Survey Age Comps --------------------------------------------------------
 obs_srv_age = reshape2::melt(model_list[[1]]$obs_srv_catchatage) %>% 
   rename(Sex_Age = Var1, region = Var2, Year = Var3, Obs = value, Country = Var4) %>% 
@@ -394,9 +490,9 @@ trawl_gear_avg
 # Get OSA residuals first
 osa_all = data.frame()
 for(i in 1:length(model_list)) { 
-  obs = t(model_list[[i]]$obs_trwl_catchatlgth[,1,40:62]) # get observed
-  pred = t(model_list[[i]]$pred_trwl_catchatlgth[,1,40:62]) # get predicted
-  rownames(pred) = 1999:2021 # some row name munging
+  obs = t(model_list[[i]]$obs_trwl_catchatlgth[,1,model_list[[i]]$trwl_catchatlgth_indicator[1,] == 1]) # get observed
+  pred = t(model_list[[i]]$pred_trwl_catchatlgth[,1,model_list[[i]]$trwl_catchatlgth_indicator[1,] == 1]) # get predicted
+  rownames(pred) = which(model_list[[i]]$trwl_catchatlgth_indicator[1,] == 1) + 1959 # some row name munging
   osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = age_labels, drop_bin = 1) %>% 
     mutate(model = model_name[i]) %>% rename(Sex_Len = Sex_Age) # get OSA residuals
   osa_all = rbind(osa_all, osa_res_tmp)
@@ -511,8 +607,8 @@ ggsave(
 
 # Tag Recovery Comparison w/ 1-Area Tag Model
 tag_area_comparison = rbind(
-  tag_rec %>% group_by(Year) %>% summarize(Obs = sum(Obs), Pred = sum(Pred)) %>% mutate(model = '5-Area'),
-  tag_rec_1area
+  tag_rec %>% group_by(Year) %>% summarize(Obs = sum(Obs), Pred = sum(Pred)) %>% mutate(model = '5-Area')
+  # tag_rec_1area
 )
 
 # Tag Recovery from 1-Area Model comparison
@@ -771,6 +867,107 @@ ggsave(
   width = 15, height = 13
 )
 
+###### Fixed-Gear Length Comps ----------------------------------------------------
+obs_fixed_len = reshape2::melt(model_list[[1]]$obs_fixed_catchatlgth) %>% 
+  rename(Sex_Len = Var1, region = Var2, Year = Var3, Obs = value) %>% 
+  group_by(region, Year) %>% 
+  mutate(total = sum(Obs), obs_prop = Obs / total) %>% 
+  filter(total != 0)
+
+# get predicted fixed gear
+pred_fixed_len = data.frame()
+for(i in 1:length(model_list)) {
+  pred_fixed_len_tmp = reshape2::melt(model_list[[i]]$pred_fixed_catchatlgth) %>% 
+    rename(Sex_Len = Var1, region = Var2, Year = Var3, pred = value) %>%  # get predicted 
+    mutate(model = model_name[i], nll = model_list[[i]]$nll[1])
+  pred_fixed_len = rbind(pred_fixed_len, pred_fixed_len_tmp)
+} # end i
+
+fixed_len_df = obs_fixed_len %>% 
+  left_join(pred_fixed_len, by = c("Sex_Len", "Year", 'region')) %>% 
+  mutate(
+    region = case_when(
+      region == 1 ~ "BS",
+      region == 2 ~ "AI",
+      region == 3 ~ "WGOA",
+      region == 4 ~ "CGOA",
+      region == 5 ~ "EGOA"
+    ), region = factor(region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")))  
+
+# plot fixed gear age average fits
+fixed_gear_avg = ggplot() +
+  geom_col(fixed_len_df %>% 
+             filter(model == model_name[1]) %>% 
+             group_by(Sex_Len, model, region) %>%
+             summarize(Obs_Mean = mean(obs_prop)),
+           mapping = aes(x = Sex_Len, y = Obs_Mean), alpha = 0.25, color = 'black') + # observed data
+  geom_line(fixed_len_df %>% 
+              group_by(Sex_Len, model, region) %>%
+              summarize(Pred_Mean = mean(pred)), # predictions
+            mapping = aes(x = Sex_Len, y = Pred_Mean, color = model, lty = model), lwd = 1) +
+  scale_x_continuous(labels = len_labels[-1][seq(2,60, 4)], breaks = seq(2, 60, 4)) +
+  scale_color_manual(values = colors) +
+  facet_wrap(~region, nrow = 1) +
+  labs(x = "Sex-Length Category", y = "Fixed-Gear Length Compositions", color = "Model", lty = "Model") +
+  theme_bw(base_size = 15) + 
+  theme(legend.position = 'none',
+        legend.background = element_blank(),
+        axis.text.x = element_text(angle = 90),
+        plot.background = element_rect(fill = "transparent", colour = NA)) 
+
+fixed_gear_avg
+
+# plot residuals 
+# Get OSA residuals first
+n_regions = 5
+osa_all = data.frame()
+for(i in 1:length(model_list)) { 
+  for(r in 1:n_regions) {
+    obs = t(model_list[[i]]$obs_fixed_catchatlgth[,r,model_list[[i]]$fixed_catchatlgth_indicator[r,] == 1]) # get observed
+    pred = t(model_list[[i]]$pred_fixed_catchatlgth[,r,model_list[[i]]$fixed_catchatlgth_indicator[r,] == 1]) # get predicted
+    rownames(pred) = 1991:1998 # some row name munging
+    osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = len_labels, drop_bin = 1) %>% 
+      mutate(model = model_name[i], Region = r) # get OSA residuals
+    osa_all = rbind(osa_all, osa_res_tmp)
+    
+  } # end r
+} # end i
+
+# name regions
+osa_all = osa_all %>% 
+  mutate(
+    Region = case_when(
+      Region == 1 ~ "BS",
+      Region == 2 ~ "AI",
+      Region == 3 ~ "WGOA",
+      Region == 4 ~ "CGOA",
+      Region == 5 ~ "EGOA"
+    ), Region = factor(Region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA"))) %>% 
+  rename(Sex_Len = Sex_Age)
+
+# OSA residuals
+osa_5area = ggplot(osa_all, aes(Year, as.numeric(Sex_Len), size=abs(resid), color=resid>0)) + 
+  geom_point(alpha = 0.35) +
+  labs(x = "Year", y = 'Sex-Length Category', size = "Absolute Residual", color = "Obs > Pred (Pos Resid)") +
+  guides(color = guide_legend(order = 0), size = guide_legend(order = 1)) +
+  facet_wrap(~Region, nrow = 1) +
+  scale_y_continuous(labels = len_labels[-1][seq(2,60, 4)], breaks = seq(2, 60, 4)) +
+  theme_bw(base_size = 15) + 
+  theme(legend.position = "top",
+        legend.background = element_blank(),
+        plot.background = element_rect(fill = "transparent", colour = NA)) 
+
+osa_5area
+
+ggsave(
+  plot_grid(osa_5area, fixed_gear_avg, ncol = 1,
+            align = "v", axis = 'lr', rel_heights = c(0.6, 0.4),
+            labels = c('A', 'B'),
+            label_size = 25, hjust = -1),
+  filename = here("figs", "Manuscript_Plots", "FixedLen_5Area_Comparison.png"),
+  width = 15, height = 13
+)
+
 ###### Survey Age Comps --------------------------------------------------------
 obs_srv_age = reshape2::melt(model_list[[1]]$obs_srv_catchatage) %>% 
   rename(Sex_Age = Var1, region = Var2, Year = Var3, Obs = value, Country = Var4) %>% 
@@ -941,9 +1138,9 @@ trawl_gear_avg
 osa_all = data.frame()
 for(i in 1:length(model_list)) { 
   for(r in 1:n_regions) {
-    obs = t(model_list[[i]]$obs_trwl_catchatlgth[,r,40:62]) # get observed
-    pred = t(model_list[[i]]$pred_trwl_catchatlgth[,r,40:62]) # get predicted
-    rownames(pred) = 1999:2021 # some row name munging
+    obs = t(model_list[[i]]$obs_trwl_catchatlgth[,r,model_list[[i]]$trwl_catchatlgth_indicator[r,] == 1]) # get observed
+    pred = t(model_list[[i]]$pred_trwl_catchatlgth[,r,model_list[[i]]$trwl_catchatlgth_indicator[r,] == 1]) # get predicted
+    rownames(pred) = which(model_list[[i]]$trwl_catchatlgth_indicator[r,] == 1) + 1959 # some row name munging
     osa_res_tmp = get_osa_res(obs = obs, pred = pred, iss = 1, iter_wt = 1, index = age_labels, drop_bin = 1) %>% 
       mutate(model = model_name[i], Region = r) %>% rename(Sex_Len = Sex_Age) # get OSA residuals
     osa_all = rbind(osa_all, osa_res_tmp)

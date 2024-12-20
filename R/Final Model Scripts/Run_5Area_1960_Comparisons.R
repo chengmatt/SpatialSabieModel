@@ -157,7 +157,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src"))     dyn.load(dynlib('TagIntegrated'))          mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -330,7 +330,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -385,7 +385,7 @@ data$n_movement_age_blocks = 1 # two age blocks
 data$movement_age_block_indicator = c(rep(0, length(2:16)), rep(0, length(17:31))) 
 
 data$n_movement_time_blocks = 3 # time blocks
-data$movement_time_block_indicator = c(rep(0, length(1960:1995)), rep(1, length(1996:2010)), rep(2, length(2010:2021)))
+data$movement_time_block_indicator = c(rep(0, length(1960:1995)), rep(1, length(1996:2010)), rep(2, length(2011:2021)))
 
 ## Movement - this is used to calculate the simplex for parameters. Cannot have a 1 and 0s
 move_matrix = array(0, dim = c(data$n_regions, data$n_regions)) # temporary matrix for feeding initial values
@@ -488,7 +488,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -646,7 +646,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -801,7 +801,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -956,7 +956,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1115,7 +1115,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1274,7 +1274,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1432,7 +1432,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1590,7 +1590,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1748,7 +1748,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -1906,7 +1906,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2062,7 +2062,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2217,7 +2217,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2372,7 +2372,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2527,7 +2527,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2682,7 +2682,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2838,7 +2838,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,
@@ -2997,7 +2997,7 @@ if(multiple_shoot == TRUE) {
   } # end i
 } else {
   
-  mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="SpatialSablefishAssessment_TMBExports", hessian = T)
+  setwd(here("src")); dyn.load(dynlib('TagIntegrated')); mle_obj = MakeADFun(data, parameters, map = map_fixed_pars, DLL="TagIntegrated", hessian = T)
   pre_optim_sanity_checks(mle_obj)
   
   mle_spatial = nlminb(start = mle_obj$par, objective = mle_obj$fn,

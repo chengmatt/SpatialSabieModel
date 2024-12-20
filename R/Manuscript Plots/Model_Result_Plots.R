@@ -366,7 +366,7 @@ ggsave(
 ) 
 
 
-### Apportionment Time-Series -----------------------------------------------
+### Apportionment Time-Series Munging -----------------------------------------------
 
 # Read in survey proprotions (from 2023 assessment files via Dan)
 dom_srv_prop = readxl::read_xlsx(here("Data", "lls_RPW_area_prop.xlsx")) %>% 
@@ -388,50 +388,112 @@ dom_srv_prop = dom_srv_prop %>%
   summarize(prop = sum(as.numeric(prop)),
             five_yr_avg = sum(as.numeric(five_yr_avg)))
 
+
+# single area 
+# Get weight at age to survey exploitable biomass
+waa_f = array(sgl_area_dat$female_mean_weight_by_age, dim = c(length(sgl_area_dat$ages), sgl_area_dat$n_regions, length(sgl_area_dat$years) + 1))
+waa_m = array(sgl_area_dat$male_mean_weight_by_age, dim = c(length(sgl_area_dat$ages), sgl_area_dat$n_regions, length(sgl_area_dat$years) + 1))
+
+# filter to years of interst
+waa_f = waa_f[,,1994:2021 - 1959]
+waa_m = waa_m[,,1994:2021 - 1959]
+
+# Get selex
+sel_srv_f = cbind(replicate(length(1994:2021), sgl_area_rep$sel_srv_f[,1,2]))
+sel_srv_m = cbind(replicate(length(1994:2021), sgl_area_rep$sel_srv_m[,1,2]))
+
+# get NAA
+naa_f = sgl_area_rep$natage_f[,1,1994:2021 - 1959]
+naa_m = sgl_area_rep$natage_m[,1,1994:2021 - 1959]
+
+# 1 Area survey exploitable biomass
+expl_srv_age1 = sel_srv_f * waa_f * naa_f +
+                sel_srv_m * waa_m * naa_m
+
+# Exploitable survey biomass
+expl_srv_biom1 <- unique(sgl_area_rep$srv_q[,,2]) * colSums(expl_srv_age1) 
+expl_srv_ts1 <- data.frame(Year = 1994:2021, value = expl_srv_biom1)
+
+# five area 
+# Get weight at age to survey exploitable biomass
+waa_f = array(sgl_area_dat$female_mean_weight_by_age, dim = c(length(sgl_area_dat$ages), 5, length(sgl_area_dat$years) + 1))
+waa_m = array(sgl_area_dat$male_mean_weight_by_age, dim = c(length(sgl_area_dat$ages), 5, length(sgl_area_dat$years) + 1))
+
+# filter to years of interst
+waa_f = waa_f[,,1994:2021 - 1959]
+waa_m = waa_m[,,1994:2021 - 1959]
+
+# Get selex
+sel_srv_f = aperm(replicate(5, cbind(replicate(length(1994:2021), sgl_area_rep$sel_srv_f[,1,2]))), c(1,3,2))
+sel_srv_m = aperm(replicate(5, cbind(replicate(length(1994:2021), sgl_area_rep$sel_srv_m[,1,2]))), c(1,3,2))
+
+# get NAA
+naa_f = model_rep$natage_f[,,1994:2021 - 1959]
+naa_m = model_rep$natage_f[,,1994:2021 - 1959]
+
+# 1 Area survey exploitable biomass
+expl_srv_age5 = sel_srv_f * waa_f * naa_f +
+                sel_srv_m * waa_m * naa_m
+
+# Exploitable survey biomass
+expl_srv_biom5 <- unique(model_rep$srv_q[,,2]) * apply(expl_srv_age5, c(2,3), sum)
+expl_srv_ts5 <- reshape2::melt(expl_srv_biom5) %>% rename(region = Var1, Year = Var2) %>% 
+  mutate(Year = Year + 1993,
+         region = case_when(
+           region == 1 ~ "BS",
+           region == 2 ~ "AI",
+           region == 3 ~ "WGOA",
+           region == 4 ~ "CGOA",
+           region == 5 ~ "EGOA"
+         ),  
+         region = factor(region, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")))
+  
 # get ssb derived from survey biomass proprotions for a single-area model
 sgl_ssb_srv_prop_df = dom_srv_prop %>% 
-  left_join(sgl_ts %>% filter(str_detect(type, 'Sp')), by = c("year" = 'Year')) %>% 
+  left_join(expl_srv_ts1, by = c("year" = 'Year')) %>% 
   mutate(prop_value = prop * value, five_yr_value = five_yr_avg * value) %>% 
-  left_join(spatial_ts %>% filter(str_detect(type, 'Sp')) %>% # left join spatial model values for comparison
+  left_join(expl_srv_ts5 %>% # left join spatial model values for comparison
               rename(five_area_value = value) %>% 
               select(Year, region, five_area_value), by = c("year" = "Year", "region")) %>% 
-  drop_na() %>% 
-  select(-model) %>% group_by(year) %>% 
+  drop_na() %>% group_by(year) %>% 
   mutate(five_area_prop = five_area_value / sum(five_area_value)) # just get the raw proportions
+
+plot(expl_srv_biom1)
+lines(colSums(expl_srv_biom5))
 
 ### Apportionment Time-Series Plot --------------------------------------------------------------------
 apport_ts_plot = ggplot() +
   geom_line(sgl_ssb_srv_prop_df, 
-            mapping = aes(x = year, y = five_yr_value, color = "1A Sp Bio * Srv Prop (5 Yr Avg)"), lwd = 1.5, alpha = 0.85) + # 5-year average proportion
+            mapping = aes(x = year, y = five_yr_value, color = "1A Srv Idx Biom * Srv Prop (5 Yr Avg)"), lwd = 1.5, alpha = 0.85) + # 5-year average proportion
   geom_line(sgl_ssb_srv_prop_df, 
-            mapping = aes(x = year, y = five_area_value, color = "5A Sp Bio"), lwd = 1.5, alpha = 0.85) + # 5 area model
+            mapping = aes(x = year, y = five_area_value, color = "5A Srv Idx Biom"), lwd = 1.5, alpha = 0.85) + # 5 area model
   facet_wrap(~region) +
   scale_color_manual(values = c("#21918c", "#3b528b")) +
   facet_grid(~region, scales = 'free') +
   theme_bw(base_size = 20) +
   coord_cartesian(ylim = c(0,NA)) +
-  labs(x = 'Year', y = 'Sp Bio (kt)',
+  labs(x = 'Year', y = 'Srv Idx Biom',
        color = "", lty = "") +
   theme(legend.position = c(0.1, 0.93), plot.background = element_rect(fill = "transparent", colour = NA),
         legend.background = element_blank(), legend.text = element_text(size = 16))
 
 # plot by proportions
-apport_ts_prop_plot = ggplot() +
-  geom_line(sgl_ssb_srv_prop_df, 
-            mapping = aes(x = year, y = five_yr_avg, color = "Srv Prop (5 Yr Avg)"), lwd = 1.5, alpha = 0.85) + # 5-year average proportion
-  geom_line(sgl_ssb_srv_prop_df, 
-            mapping = aes(x = year, y = five_area_prop, color = "5A Sp Bio Prop"), lwd = 1.5, alpha = 0.85) + # 5 area model
-  facet_wrap(~region) +
-  scale_color_manual(values = c("#21918c", "#3b528b"),
-    breaks = c("Srv Prop (5 Yr Avg)", "5A Sp Bio Prop")
-  ) + 
-  facet_grid(~region, scales = 'free') +
-  theme_bw(base_size = 20) +
-  coord_cartesian(ylim = c(0,NA)) +
-  labs(x = 'Year', y = 'Bio Prop',
-       color = "", lty = "") +
-  theme(legend.position = c(0.07, 0.93), plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.background = element_blank(), legend.text = element_text(size = 16))
+# apport_ts_prop_plot = ggplot() +
+#   geom_line(sgl_ssb_srv_prop_df, 
+#             mapping = aes(x = year, y = five_yr_avg, color = "Srv Prop (5 Yr Avg)"), lwd = 1.5, alpha = 0.85) + # 5-year average proportion
+#   geom_line(sgl_ssb_srv_prop_df, 
+#             mapping = aes(x = year, y = five_area_prop, color = "5A Srv Idx Biom Prop"), lwd = 1.5, alpha = 0.85) + # 5 area model
+#   facet_wrap(~region) +
+#   scale_color_manual(values = c("#21918c", "#3b528b"),
+#     breaks = c("Srv Prop (5 Yr Avg)", "5A Srv Idx Biom Prop")
+#   ) + 
+#   facet_grid(~region, scales = 'free') +
+#   theme_bw(base_size = 20) +
+#   coord_cartesian(ylim = c(0,NA)) +
+#   labs(x = 'Year', y = 'Biom Prop',
+#        color = "", lty = "") +
+#   theme(legend.position = c(0.07, 0.93), plot.background = element_rect(fill = "transparent", colour = NA),
+#         legend.background = element_blank(), legend.text = element_text(size = 16))
 
 # regress the two together by biomass
 regression_ts_plot = ggplot(sgl_ssb_srv_prop_df, aes(x = five_area_value, y = five_yr_value)) +
@@ -443,31 +505,66 @@ regression_ts_plot = ggplot(sgl_ssb_srv_prop_df, aes(x = five_area_value, y = fi
   facet_grid(~region, scales = 'free') +
   theme_bw(base_size = 20) +
   coord_cartesian(ylim = c(0,NA)) +
-  labs(y = '1A Sp Bio (kt) * Srv Prop (5 Yr Avg)', x = '5A Sp Bio (kt)') +
+  labs(y = '1A Srv Idx Biom * Srv Prop (5 Yr Avg)', x = '5A Srv Idx Biom') +
   theme(legend.position = 'top', plot.background = element_rect(fill = "transparent", colour = NA),
         legend.background = element_blank())
 
-# regress the two together by proportions
-regression_prop_plot = ggplot(sgl_ssb_srv_prop_df, aes(x = five_area_prop, y = five_yr_avg)) +
-  geom_point() + 
-  ggpmisc::stat_poly_line() +
-  ggpmisc::stat_poly_eq(size = 6, label.y = 0.065, label.x = 0.97) +
-  facet_wrap(~region) +
-  scale_color_manual(values = c("#21918c", "#3b528b")) +
-  facet_grid(~region, scales = 'free') +
-  theme_bw(base_size = 20) +
-  coord_cartesian(ylim = c(0,NA)) +
-  labs(y = 'Srv Prop (5 Year Avg)', x = '5A Sp Bio Prop') +
-  theme(legend.position = 'top', plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.background = element_blank())
+# # regress the two together by proportions
+# regression_prop_plot = ggplot(sgl_ssb_srv_prop_df, aes(x = five_area_prop, y = five_yr_avg)) +
+#   geom_point() + 
+#   ggpmisc::stat_poly_line() +
+#   ggpmisc::stat_poly_eq(size = 6, label.y = 0.065, label.x = 0.97) +
+#   facet_wrap(~region) +
+#   scale_color_manual(values = c("#21918c", "#3b528b")) +
+#   facet_grid(~region, scales = 'free') +
+#   theme_bw(base_size = 20) +
+#   coord_cartesian(ylim = c(0,NA)) +
+#   labs(y = 'Srv Prop (5 Year Avg)', x = '5A Srv Idx Biom Prop') +
+#   theme(legend.position = 'top', plot.background = element_rect(fill = "transparent", colour = NA),
+#         legend.background = element_blank())
 
 
 ggsave(
-  plot_grid(apport_ts_plot, regression_ts_plot, apport_ts_prop_plot, regression_prop_plot, ncol = 1,
-            labels = c('A', 'B', 'C', 'D'),
+  plot_grid(apport_ts_plot, regression_ts_plot, ncol = 1,
+            labels = c('A', 'B'), align = 'hv',
             label_size = 25, hjust = -1.85),
   filename = here("figs", "Manuscript_Plots", "Apportionment_Comparison.png"),
-  width = 20, height = 20
+  width = 23, height = 13
 ) 
 
 
+
+# ISS Sensitivity ---------------------------------------------------------
+# Look at ISS Sensitivity
+out_5area_path = here("Output", "Final Models", "5-Area-1960")
+files = list.files(out_5area_path)
+files = files[str_detect(files, "FishBlock")]
+
+ts_all <- data.frame()
+for(i in 1:length(files)) {
+  rep = readRDS(here(out_5area_path, files[i], 'mle_report.RDS')) # read in report
+  mod = readRDS(here(out_5area_path, files[i], 'sd_report.RDS')) # read in report
+  ssb_tmp <- reshape2::melt(rep$SSB_yr) %>% mutate(model = files[i], type = 'Sp Bio (kt)', conv = mod$pdHess) # get ssb
+  rec_tmp <- reshape2::melt(rep$recruitment_yr) %>% mutate(model = files[i], type = 'Recrmt (millions)', conv = mod$pdHess) # get rec
+  ts_all <- rbind(ts_all, ssb_tmp, rec_tmp)
+} # end i
+
+# do some more residual munging
+ts_all <- ts_all %>% mutate(iss = str_remove(model, "5-Area-1960-03-FishBlock")) %>% 
+  mutate(iss = as.numeric(ifelse(iss == "", 40, str_remove(iss, "_")))) %>% 
+  mutate(Var2 = case_when(
+    Var2 == 1 ~ "BS",
+    Var2 == 2 ~ "AI",
+    Var2 == 3 ~ "WGOA",
+    Var2 == 4 ~ "CGOA",
+    Var2 == 5 ~ "EGOA"
+         ),  
+    Var2 = factor(Var2, levels = c("BS", "AI", "WGOA", "CGOA", "EGOA")))
+
+# Plot!
+ggplot(ts_all %>% filter(conv == TRUE), aes(x = Var1 + 1959, y = value, color = factor(iss))) +
+  geom_line(lwd = 1.2) +
+  scale_color_viridis_d(option = "cividis") +
+  facet_grid(type~Var2, scales = "free_y") +
+  labs(x = "Year", y = "Value", color = "Input Sample Size") +
+  theme_bw(base_size = 15) 

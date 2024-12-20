@@ -51,7 +51,7 @@ catch_90_lng = catch_90_lng %>% mutate(area = case_when(area == "CG"  ~ "CGOA",
                                        fmp_gear = case_when(type == "trawl"  ~ "TRW",
                                                             type == "fixed"  ~ "HAL"))  %>%  select(!type)
 catch_90_lng$year = 1990
-catch_post_90_lng = catch_post_90 %>% group_by(year, area, fmp_gear) %>% summarise(catch = sum(weight_posted))
+catch_post_90_lng = catch_post_90 %>% group_by(year, fmp_subarea, fmp_gear) %>% summarise(catch = sum(weight_posted))
 ## reformat 1977-1989 data
 ## drop sum column
 historic_catch = historic_catch %>% dplyr::select(!sum)
